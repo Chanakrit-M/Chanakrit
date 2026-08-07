@@ -300,7 +300,7 @@ input,select,textarea{font-family:inherit;}
   body > *:not(#print-area){ display:none !important; }
   #print-area{ display:block !important; width:50mm; margin:0; padding:0; }
   .label-sheet{display:block; width:50mm; margin:0; padding:0;}
-  .plabel{page-break-after:always; page-break-inside:avoid; transform:rotate(180deg); transform-origin:center center;}
+  .plabel{page-break-after:always; page-break-inside:avoid;}
   .plabel:last-child{page-break-after:auto;}
 }
 </style>
@@ -380,13 +380,18 @@ input,select,textarea{font-family:inherit;}
       <div class="view" id="view-print">
         <h3 class="section-title">เลือกชุดที่ต้องการพิมพ์สติกเกอร์</h3>
         <div class="print-picker" id="print-picker"></div>
-        <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
           <button class="btn btn-primary" id="btn-print-now">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 V3 h12 v6"/><rect x="6" y="14" width="12" height="7"/><rect x="4" y="9" width="16" height="7" rx="1.5"/></svg>
-            พิมพ์สติกเกอร์ที่เลือก
+            พิมพ์สติกเกอร์ที่เลือก (ผ่านเบราว์เซอร์)
+          </button>
+          <button class="btn btn-outline-blue" id="btn-download-zpl">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15 v4 a2 2 0 0 1-2 2 H5 a2 2 0 0 1-2-2 v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            ดาวน์โหลดไฟล์ ZPL (พิมพ์ตรง แม่นยำกว่า)
           </button>
           <button class="btn" id="btn-select-all-print">เลือกทั้งหมด</button>
         </div>
+        <p style="font-size:11.5px;color:var(--steel);margin:0 0 20px;">ถ้าพิมพ์ผ่านเบราว์เซอร์แล้วขนาด/ตำแหน่งไม่ตรง ให้ใช้ปุ่ม "ดาวน์โหลดไฟล์ ZPL" แทน แล้วส่งไฟล์ที่ได้เข้าเครื่องพิมพ์ Zebra โดยตรงผ่านโปรแกรม Zebra Setup Utilities (เมนู "Open Communication with Printer" → "Send file")</p>
         <h3 class="section-title">ตัวอย่างสติกเกอร์</h3>
         <div class="label-preview-wrap">
           <div class="label-sheet" id="label-preview"></div>
@@ -1071,7 +1076,108 @@ document.getElementById('btn-print-now').addEventListener('click', ()=>{
   setTimeout(()=>window.print(), 200);
 });
 
-/* ---------- SCAN VIEW ---------- */
+/* ---------- ZPL DIRECT-PRINT GENERATION (bypasses browser print pipeline entirely) ---------- */
+function mmToDots(mm){ return Math.round(mm/25.4*203); } // 203dpi Zebra
+const ZPL_W = mmToDots(50);  // ~400 dots
+const ZPL_H = mmToDots(20);  // ~160 dots
+async function renderLabelCanvasForZpl(item){
+  try{ await document.fonts.ready; }catch(e){}
+  const canvas = document.createElement('canvas');
+  canvas.width = ZPL_W; canvas.height = ZPL_H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,ZPL_W,ZPL_H);
+  ctx.fillStyle = '#000';
+
+  const qrSize = 120;
+  const qrDiv = document.createElement('div');
+  qrDiv.style.position='fixed'; qrDiv.style.left='-9999px'; qrDiv.style.top='0';
+  document.body.appendChild(qrDiv);
+  try{ new QRCode(qrDiv, {text:item.code, width:qrSize, height:qrSize, colorDark:"#000000", colorLight:"#ffffff"}); }catch(e){}
+  await new Promise(r=>setTimeout(r,60));
+  const qrCanvasEl = qrDiv.querySelector('canvas');
+  const qrImgEl = qrDiv.querySelector('img');
+  const qrY = Math.round((ZPL_H-qrSize)/2);
+  try{
+    if(qrCanvasEl){ ctx.drawImage(qrCanvasEl, 6, qrY, qrSize, qrSize); }
+    else if(qrImgEl){ await new Promise(res=>{ if(qrImgEl.complete) res(); else qrImgEl.onload=res; }); ctx.drawImage(qrImgEl, 6, qrY, qrSize, qrSize); }
+  }catch(e){}
+  document.body.removeChild(qrDiv);
+
+  const textX = 6 + qrSize + 12;
+  const maxW = ZPL_W - textX - 6;
+  ctx.textBaseline = 'top';
+
+  ctx.font = '700 30px Sarabun, "Noto Sans Thai", sans-serif';
+  let name = item.name || '';
+  while(name.length>1 && ctx.measureText(name).width > maxW){ name = name.slice(0,-1); }
+  if(name !== (item.name||'') && name.length>1) name = name.slice(0,-1)+'…';
+  ctx.fillText(name, textX, 6);
+
+  ctx.font = '600 17px "IBM Plex Mono", monospace';
+  ctx.fillText(`LOT ${item.lot||'-'} · ${item.code}`, textX, 52);
+
+  ctx.font = '700 26px "IBM Plex Mono", monospace';
+  ctx.fillText(`EXP ${fmtDate(item.expiry)}`, textX, 80);
+
+  return canvas;
+}
+function canvasToZplGraphic(canvas){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const imgData = ctx.getImageData(0,0,w,h).data;
+  const bytesPerRow = Math.ceil(w/8);
+  const totalBytes = bytesPerRow*h;
+  let hex = '';
+  for(let y=0;y<h;y++){
+    for(let bx=0; bx<bytesPerRow; bx++){
+      let byte = 0;
+      for(let bit=0; bit<8; bit++){
+        const x = bx*8+bit;
+        let on = 0;
+        if(x<w){
+          const idx = (y*w+x)*4;
+          const lum = (imgData[idx]+imgData[idx+1]+imgData[idx+2])/3;
+          const a = imgData[idx+3];
+          on = (a>10 && lum<128) ? 1:0;
+        }
+        byte = (byte<<1) | on;
+      }
+      hex += byte.toString(16).padStart(2,'0');
+    }
+  }
+  return { totalBytes, bytesPerRow, hex };
+}
+async function generateZplForItems(list){
+  let zpl = '';
+  for(const item of list){
+    const canvas = await renderLabelCanvasForZpl(item);
+    const gf = canvasToZplGraphic(canvas);
+    zpl += `^XA^PW${ZPL_W}^LL${ZPL_H}^LH0,0^FO0,0^GFA,${gf.totalBytes},${gf.totalBytes},${gf.bytesPerRow},${gf.hex}^FS^XZ\n`;
+  }
+  return zpl;
+}
+function downloadZplFile(zplText, filename){
+  const blob = new Blob([zplText], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+document.getElementById('btn-download-zpl').addEventListener('click', async ()=>{
+  const list = items.filter(i=>selectedForPrint.has(i.id));
+  if(!list.length){ showToast('กรุณาเลือกอย่างน้อย 1 รายการก่อน'); return; }
+  showToast('กำลังสร้างไฟล์ ZPL...', true);
+  try{
+    const zpl = await generateZplForItems(list);
+    downloadZplFile(zpl, 'sterile-stock-labels.zpl');
+    showToast('ดาวน์โหลดไฟล์ ZPL แล้ว — ส่งไฟล์นี้เข้าเครื่องพิมพ์ Zebra โดยตรง', true);
+  }catch(e){
+    showToast('สร้างไฟล์ ZPL ไม่สำเร็จ ลองใหม่อีกครั้ง');
+  }
+});
+
+
 function findByCode(code){
   if(!code) return null;
   const c = code.trim().toUpperCase();
@@ -1255,15 +1361,29 @@ document.getElementById('btn-receive-save').addEventListener('click', async ()=>
 
   const wrap = document.getElementById('receive-print-preview');
   wrap.innerHTML = `<p style="font-size:12.5px;color:var(--steel);margin-bottom:8px;">พร้อมพิมพ์สติกเกอร์สำหรับติดชุดนี้</p>` + stickerHTML(newItem, 'recv');
-  wrap.innerHTML += `<button class="btn btn-primary" id="btn-print-receive" style="width:100%;justify-content:center;margin-top:10px;">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 V3 h12 v6"/><rect x="6" y="14" width="12" height="7"/><rect x="4" y="9" width="16" height="7" rx="1.5"/></svg>
-    พิมพ์สติกเกอร์นี้เลย
-  </button>`;
+  wrap.innerHTML += `<div style="display:flex;gap:8px;margin-top:10px;">
+    <button class="btn btn-primary" id="btn-print-receive" style="flex:1;justify-content:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 V3 h12 v6"/><rect x="6" y="14" width="12" height="7"/><rect x="4" y="9" width="16" height="7" rx="1.5"/></svg>
+      พิมพ์ (เบราว์เซอร์)
+    </button>
+    <button class="btn btn-outline-blue" id="btn-zpl-receive" style="flex:1;justify-content:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15 v4 a2 2 0 0 1-2 2 H5 a2 2 0 0 1-2-2 v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      ดาวน์โหลด ZPL
+    </button>
+  </div>`;
   try{ const svgEl = wrap.querySelector('.bc-recv'); if(svgEl) JsBarcode(svgEl, newItem.code, {height:28, width:1.2, fontSize:8, margin:0, displayValue:false}); }catch(e){}
   try{ const qrEl = wrap.querySelector('.qr-recv'); if(qrEl) new QRCode(qrEl, {text:newItem.code, width:52, height:52, colorDark:"#141F1B", colorLight:"#ffffff"}); }catch(e){}
   document.getElementById('btn-print-receive').onclick = ()=>{
     renderPrintLabels([newItem], 'xr');
     setTimeout(()=>window.print(), 200);
+  };
+  document.getElementById('btn-zpl-receive').onclick = async ()=>{
+    showToast('กำลังสร้างไฟล์ ZPL...', true);
+    try{
+      const zpl = await generateZplForItems([newItem]);
+      downloadZplFile(zpl, `sterile-stock-${newItem.code}.zpl`);
+      showToast('ดาวน์โหลดไฟล์ ZPL แล้ว', true);
+    }catch(e){ showToast('สร้างไฟล์ ZPL ไม่สำเร็จ'); }
   };
 
   document.getElementById('r-name').value='';
