@@ -298,9 +298,9 @@ input,select,textarea{font-family:inherit;}
 .plabel-code{font-size:5pt;color:#777;margin-top:0.5mm;font-family:'IBM Plex Mono',monospace;}
 @media print{
   @page{ size: 50mm 20mm; margin: 0; }
-  body *{visibility:hidden;}
-  #print-area,#print-area *{visibility:visible;}
-  #print-area{display:block !important;position:absolute;top:0;left:0;}
+  html, body{ margin:0 !important; padding:0 !important; height:auto !important; }
+  body > *:not(#print-area){ display:none !important; }
+  #print-area{ display:block !important; }
   .label-sheet{display:block;}
   .plabel{page-break-after:always;}
   .plabel:last-child{page-break-after:auto;}
