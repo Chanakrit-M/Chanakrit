@@ -279,30 +279,27 @@ input,select,textarea{font-family:inherit;}
   .bn-item.active{color:#fff;}
 }
 
-/* ---------- PRINT MEDIA (matches Zebra driver stock: 4.094in x 2in = 104mm x 50.8mm, rotated 180 to match driver's built-in 180deg rotation) ---------- */
+/* ---------- PRINT MEDIA (real physical label = 50mm x 20mm; content pre-rotated 180deg to cancel the Zebra driver's built-in 180deg rotation, which we leave untouched so it doesn't affect other label jobs on the shared printer) ---------- */
 #print-area{display:none;}
 .plabel{
-  width:104mm;height:50.8mm;box-sizing:border-box;padding:5mm 6mm;margin:0;
-  display:flex;align-items:center;gap:6mm;overflow:hidden;
+  width:50mm;height:20mm;box-sizing:border-box;padding:1.5mm 2mm;margin:0;
+  display:flex;align-items:center;gap:1.8mm;overflow:hidden;
   font-family:'IBM Plex Sans Thai','Noto Sans Thai',sans-serif;
 }
-.plabel-qr{width:32mm;height:32mm;flex-shrink:0;overflow:hidden;line-height:0;}
-.plabel-qr img,.plabel-qr canvas{width:32mm !important;height:32mm !important;max-width:32mm !important;max-height:32mm !important;display:block;}
-.plabel-qr table{width:32mm !important;height:32mm !important;max-width:32mm !important;max-height:32mm !important;border-collapse:collapse;border-spacing:0;margin:0;padding:0;}
+.plabel-qr{width:15mm;height:15mm;flex-shrink:0;overflow:hidden;line-height:0;}
+.plabel-qr img,.plabel-qr canvas{width:15mm !important;height:15mm !important;max-width:15mm !important;max-height:15mm !important;display:block;}
+.plabel-qr table{width:15mm !important;height:15mm !important;max-width:15mm !important;max-height:15mm !important;border-collapse:collapse;border-spacing:0;margin:0;padding:0;}
 .plabel-qr table td{padding:0;}
-.plabel-info{flex:1;min-width:0;line-height:1.2;overflow:hidden;}
-.plabel-brand2{display:flex;align-items:center;gap:2mm;margin-bottom:2mm;}
-.plabel-brand2 img{width:6mm;height:6mm;border-radius:50%;flex-shrink:0;}
-.plabel-brand2 span{font-size:2.6mm;font-weight:700;color:#666;}
-.plabel-name{font-size:6mm;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
-.plabel-sub{font-size:3.4mm;font-weight:600;color:#000;margin-top:2mm;font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15;}
-.plabel-exp{font-size:5mm;font-weight:700;color:#000;margin-top:2mm;font-family:'IBM Plex Mono',monospace;line-height:1.15;}
+.plabel-info{flex:1;min-width:0;line-height:1.15;overflow:hidden;}
+.plabel-name{font-size:3.6mm;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15;}
+.plabel-sub{font-size:2.2mm;font-weight:600;color:#000;margin-top:1mm;font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1;}
+.plabel-exp{font-size:3.2mm;font-weight:700;color:#000;margin-top:1mm;font-family:'IBM Plex Mono',monospace;line-height:1.1;}
 @media print{
-  @page{ size: 104mm 50.8mm; margin: 0; }
-  html, body{ margin:0 !important; padding:0 !important; width:104mm !important; height:auto !important; overflow:hidden; }
+  @page{ size: 50mm 20mm; margin: 0; }
+  html, body{ margin:0 !important; padding:0 !important; width:50mm !important; height:auto !important; overflow:hidden; }
   body > *:not(#print-area){ display:none !important; }
-  #print-area{ display:block !important; width:104mm; margin:0; padding:0; }
-  .label-sheet{display:block; width:104mm; margin:0; padding:0;}
+  #print-area{ display:block !important; width:50mm; margin:0; padding:0; }
+  .label-sheet{display:block; width:50mm; margin:0; padding:0;}
   .plabel{page-break-after:always; page-break-inside:avoid; transform:rotate(180deg); transform-origin:center center;}
   .plabel:last-child{page-break-after:auto;}
 }
@@ -1034,7 +1031,6 @@ function printLabelHTML(item, idx){
   return `<div class="plabel" id="plabel-${idx}">
     <div class="plabel-qr qr-${idx}"></div>
     <div class="plabel-info">
-      <div class="plabel-brand2"><img src="${HOSPITAL_LOGO}"><span>STERILE STOCK &middot; โรงพยาบาลยางตลาด</span></div>
       <div class="plabel-name">${escapeHtml(item.name)}</div>
       <div class="plabel-sub">LOT ${escapeHtml(item.lot||'-')} &middot; ${item.code}</div>
       <div class="plabel-exp">EXP ${fmtDate(item.expiry)}</div>
@@ -1044,12 +1040,12 @@ function printLabelHTML(item, idx){
 function renderPrintLabels(list, idPrefix){
   const sheet = document.getElementById('print-sheet');
   sheet.innerHTML = list.map((it,idx)=>printLabelHTML(it, idPrefix+idx)).join('');
-  sheet.style.height = (list.length * 50.8) + 'mm';
+  sheet.style.height = (list.length * 20) + 'mm';
   sheet.style.overflow = 'hidden';
   list.forEach((it,idx)=>{
     try{
       const qrEl = sheet.querySelector('.qr-'+idPrefix+idx);
-      if(qrEl) new QRCode(qrEl, {text:it.code, width:128, height:128, colorDark:"#000000", colorLight:"#ffffff"});
+      if(qrEl) new QRCode(qrEl, {text:it.code, width:64, height:64, colorDark:"#000000", colorLight:"#ffffff"});
     }catch(e){}
   });
 }
