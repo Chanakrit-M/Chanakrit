@@ -325,6 +325,7 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" data-view="print"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 V3 h12 v6"/><rect x="6" y="14" width="12" height="7"/><rect x="4" y="9" width="16" height="7" rx="1.5"/><circle cx="17" cy="12" r="0.7" fill="currentColor"/></svg>พิมพ์สติกเกอร์</button>
       <button class="nav-item" data-view="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7 V4 a1 1 0 0 1 1-1 h3"/><path d="M21 7 V4 a1 1 0 0 0-1-1 h-3"/><path d="M3 17 v3 a1 1 0 0 0 1 1 h3"/><path d="M21 17 v3 a1 1 0 0 1-1 1 h-3"/><line x1="4" y1="12" x2="20" y2="12"/></svg>สแกนใช้งาน</button>
       <button class="nav-item" data-view="standards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 H7 a2 2 0 0 0-2 2 v12 a2 2 0 0 0 2 2 h10 a2 2 0 0 0 2-2 V7 a2 2 0 0 0-2-2 h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 13 l2 2 l4-4"/></svg>ตรวจมาตรฐาน<span class="nav-badge" id="badge-fail" style="display:none;"></span></button>
+      <button class="nav-item" data-view="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3 v18 h18"/><rect x="7" y="12" width="3" height="6" rx="0.5"/><rect x="13" y="8" width="3" height="10" rx="0.5"/><rect x="19" y="5" width="3" height="13" rx="0.5"/></svg>รายงาน</button>
     </nav>
     <div class="sidebar-foot">ข้อมูลซิงก์อัตโนมัติกับทีมทุกคนที่เปิดหน้านี้</div>
   </aside>
@@ -415,7 +416,7 @@ input,select,textarea{font-family:inherit;}
             </div>
             <p style="font-size:11.5px;color:var(--steel);margin:10px 0 0;">หากกล้องใช้งานไม่ได้ในอุปกรณ์นี้ ให้กรอกรหัสด้วยตนเองด้านล่าง</p>
             <div class="manual-row">
-              <input id="manual-code" placeholder="กรอกรหัสชุด เช่น SS-XXXXXX" class="mono">
+              <input id="manual-code" placeholder="สแกน QR ของแอป หรือบาร์โค้ดจ่ายกลางก็ได้" class="mono">
               <button class="btn btn-outline-blue" id="btn-manual-find">ค้นหา</button>
             </div>
           </div>
@@ -423,7 +424,7 @@ input,select,textarea{font-family:inherit;}
             <div class="scan-result-card" id="scan-result">
               <div class="empty-state" style="padding:20px 10px;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7 V4 a1 1 0 0 1 1-1 h3"/><path d="M21 7 V4 a1 1 0 0 0-1-1 h-3"/><path d="M3 17 v3 a1 1 0 0 0 1 1 h3"/><path d="M21 17 v3 a1 1 0 0 1-1 1 h-3"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
-                <p>สแกนหรือกรอกรหัส เพื่อค้นหาชุดและบันทึกการใช้งาน</p>
+                <p>สแกน QR ของแอป หรือบาร์โค้ดเดิมจากจ่ายกลางก็ได้ — เพื่อค้นหาชุดและบันทึกการใช้งาน</p>
               </div>
             </div>
             <div class="scan-panel scan-log">
@@ -497,6 +498,30 @@ input,select,textarea{font-family:inherit;}
         </table>
       </div>
 
+      <!-- REPORTS -->
+      <div class="view" id="view-reports">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;">
+          <div class="field" style="margin-bottom:0;">
+            <label>เลือกเดือน</label>
+            <input type="month" id="report-month">
+          </div>
+          <button class="btn" id="btn-export-report">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15 v4 a2 2 0 0 1-2 2 H5 a2 2 0 0 1-2-2 v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            ดาวน์โหลด CSV
+          </button>
+        </div>
+        <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:26px;" id="report-stat-grid">
+          <div class="stat-card blue"><div class="n" id="report-total-count">0</div><div class="l">ครั้งที่ใช้งานทั้งหมด</div></div>
+          <div class="stat-card ok"><div class="n" id="report-item-types">0</div><div class="l">ชนิดอุปกรณ์ที่ถูกใช้</div></div>
+          <div class="stat-card soon"><div class="n" id="report-top-item">-</div><div class="l">ใช้บ่อยที่สุด</div></div>
+        </div>
+        <h3 class="section-title">สรุปการใช้งานแยกตามอุปกรณ์</h3>
+        <table class="std-table">
+          <thead><tr><th>ชื่อชุด/อุปกรณ์</th><th>จำนวนครั้งที่ใช้</th></tr></thead>
+          <tbody id="report-table-body"></tbody>
+        </table>
+      </div>
+
     </div>
   </div>
 </div>
@@ -508,6 +533,7 @@ input,select,textarea{font-family:inherit;}
   <button class="bn-item" data-view="print"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 V3 h12 v6"/><rect x="6" y="14" width="12" height="7"/><rect x="4" y="9" width="16" height="7" rx="1.5"/></svg>พิมพ์</button>
   <button class="bn-item" data-view="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7 V4 a1 1 0 0 1 1-1 h3"/><path d="M21 7 V4 a1 1 0 0 0-1-1 h-3"/><path d="M3 17 v3 a1 1 0 0 0 1 1 h3"/><path d="M21 17 v3 a1 1 0 0 1-1 1 h-3"/><line x1="4" y1="12" x2="20" y2="12"/></svg>สแกน</button>
   <button class="bn-item" data-view="standards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 H7 a2 2 0 0 0-2 2 v12 a2 2 0 0 0 2 2 h10 a2 2 0 0 0 2-2 V7 a2 2 0 0 0-2-2 h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>มาตรฐาน</button>
+  <button class="bn-item" data-view="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3 v18 h18"/><rect x="7" y="12" width="3" height="6" rx="0.5"/><rect x="13" y="8" width="3" height="10" rx="0.5"/><rect x="19" y="5" width="3" height="13" rx="0.5"/></svg>รายงาน</button>
 </nav>
 
 <!-- ADD/EDIT MODAL -->
@@ -710,7 +736,7 @@ setInterval(()=>{
 }, 10000);
 
 /* ---------- NAV ---------- */
-const VIEW_TITLES = {dashboard:'ภาพรวม', inventory:'คลังสต๊อก', print:'พิมพ์สติกเกอร์', scan:'สแกนใช้งาน', standards:'ตรวจมาตรฐาน'};
+const VIEW_TITLES = {dashboard:'ภาพรวม', inventory:'คลังสต๊อก', print:'พิมพ์สติกเกอร์', scan:'สแกนใช้งาน', standards:'ตรวจมาตรฐาน', reports:'รายงาน'};
 function setView(v){
   currentView = v;
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
@@ -721,6 +747,7 @@ function setView(v){
   if(v !== 'scan'){ stopScanner(); stopReceiveScanner(); }
   if(v === 'print') renderPrintView();
   if(v === 'standards') renderStandardsView();
+  if(v === 'reports') renderReportsView();
 }
 document.getElementById('nav').addEventListener('click', e=>{
   const btn = e.target.closest('.nav-item'); if(!btn) return;
@@ -1183,7 +1210,16 @@ document.getElementById('btn-download-zpl').addEventListener('click', async ()=>
 function findByCode(code){
   if(!code) return null;
   const c = code.trim().toUpperCase();
-  return items.find(i=>i.code.toUpperCase()===c) || null;
+  // 1) exact match by our own generated QR code
+  const own = items.find(i=>i.code.toUpperCase()===c);
+  if(own) return own;
+  // 2) fallback: scanned the ORIGINAL barcode from จ่ายกลาง (stored in the Lot field).
+  // Multiple batches of the same item type can share this barcode, so among matches
+  // with stock remaining, pick the one expiring soonest first (FEFO).
+  const candidates = items.filter(i=>(i.lot||'').trim().toUpperCase()===c && i.qty>0);
+  if(!candidates.length) return null;
+  candidates.sort((a,b)=>daysUntil(a.expiry)-daysUntil(b.expiry));
+  return candidates[0];
 }
 function renderScanResult(item, notFoundCode){
   const box = document.getElementById('scan-result');
@@ -1438,6 +1474,56 @@ function renderStandardsView(){
     });
   });
 }
+
+/* ---------- REPORTS ---------- */
+function currentMonthValue(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function getReportData(monthValue){
+  // monthValue format: "YYYY-MM"
+  const filtered = logs.filter(l=>{
+    const d = new Date(l.ts);
+    const mv = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    return mv === monthValue;
+  });
+  const byName = {};
+  filtered.forEach(l=>{
+    const key = l.name || '(ไม่ทราบชื่อ)';
+    byName[key] = (byName[key]||0) + 1;
+  });
+  const rows = Object.entries(byName).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
+  return { totalCount: filtered.length, itemTypes: rows.length, topItem: rows.length ? rows[0].name : '-', rows };
+}
+function renderReportsView(){
+  const monthInput = document.getElementById('report-month');
+  if(!monthInput.value) monthInput.value = currentMonthValue();
+  const data = getReportData(monthInput.value);
+  document.getElementById('report-total-count').textContent = data.totalCount;
+  document.getElementById('report-item-types').textContent = data.itemTypes;
+  document.getElementById('report-top-item').textContent = data.topItem;
+  document.getElementById('report-top-item').style.fontSize = data.topItem.length > 10 ? '16px' : '28px';
+  const body = document.getElementById('report-table-body');
+  body.innerHTML = data.rows.length
+    ? data.rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td class="mono">${r.count}</td></tr>`).join('')
+    : `<tr><td colspan="2" style="text-align:center;color:var(--steel);padding:30px;">ไม่มีการใช้งานในเดือนนี้</td></tr>`;
+}
+document.getElementById('report-month').addEventListener('change', renderReportsView);
+document.getElementById('btn-export-report').addEventListener('click', ()=>{
+  const monthInput = document.getElementById('report-month');
+  const monthValue = monthInput.value || currentMonthValue();
+  const data = getReportData(monthValue);
+  let csv = '\uFEFFชื่อชุด/อุปกรณ์,จำนวนครั้งที่ใช้\n';
+  data.rows.forEach(r=>{ csv += `"${r.name.replace(/"/g,'""')}",${r.count}\n`; });
+  csv += `\nรวมทั้งหมด,${data.totalCount}\n`;
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `sterile-stock-report-${monthValue}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  showToast('ดาวน์โหลดรายงาน CSV แล้ว', true);
+});
 
 /* ---------- RENDER ALL ---------- */
 function renderAll(){
