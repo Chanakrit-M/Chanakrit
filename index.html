@@ -1614,6 +1614,7 @@ function unlockApp(){
 }
 async function getStoredPin(){
   const res = await cloudGet('app-pin');
+  console.log('[SterileStock] app-pin cloudGet result:', res);
   if(res.ok && res.data) return String(res.data);
   return DEFAULT_PIN;
 }
@@ -1624,6 +1625,7 @@ async function tryLogin(){
   if(!pin){ errEl.textContent = 'กรุณากรอกรหัสผ่าน'; return; }
   errEl.textContent = 'กำลังตรวจสอบ...';
   const correctPin = await getStoredPin();
+  console.log('[SterileStock] entered pin:', JSON.stringify(pin), 'expected pin:', JSON.stringify(correctPin));
   if(pin === correctPin){
     try{ localStorage.setItem('sterile-unlocked', 'true'); }catch(e){}
     errEl.textContent = '';
