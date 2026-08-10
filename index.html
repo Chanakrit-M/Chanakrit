@@ -639,10 +639,8 @@ function showToast(msg, ok){
   showToast._t = setTimeout(()=>t.classList.remove('show'), 2600);
 }
 
-/* ---------- STORAGE (Firebase Realtime Database) ---------- */
-// Paste your Firebase Realtime Database URL below, e.g.:
-// "https://sterile-stock-default-rtdb.asia-southeast1.firebasedatabase.app"
-const FIREBASE_URL = "https://sterile-stock-default-rtdb.asia-southeast1.firebasedatabase.app";
+/* ---------- STORAGE (Google Apps Script + Google Sheet backend) ---------- */
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4ybIE4VFstwLk4qwhhcY3yxANEbT8rjg86Br-cImFLHvkUMzxAj9p5ccGt4H_ZV6h/exec";
 
 let syncBadgeTimer = null;
 function setSyncStatus(state){
@@ -662,22 +660,26 @@ function setSyncStatus(state){
   }
 }
 async function cloudGet(key){
-  if(!FIREBASE_URL) return null;
+  if(!APPS_SCRIPT_URL) return null;
   try{
-    const r = await fetch(`${FIREBASE_URL}/${key}.json`, {cache:'no-store'});
-    if(!r.ok){ console.error('[SterileStock] Firebase GET failed', key, r.status, r.statusText); return null; }
-    return await r.json();
-  }catch(e){ console.error('[SterileStock] Firebase GET error', key, e); return null; }
+    const r = await fetch(`${APPS_SCRIPT_URL}?key=${encodeURIComponent(key)}`, {cache:'no-store'});
+    if(!r.ok){ console.error('[SterileStock] AppsScript GET failed', key, r.status, r.statusText); return null; }
+    const text = await r.text();
+    if(text==='null' || !text) return null;
+    return JSON.parse(text);
+  }catch(e){ console.error('[SterileStock] AppsScript GET error', key, e); return null; }
 }
 async function cloudSet(key, value){
-  if(!FIREBASE_URL) return false;
+  if(!APPS_SCRIPT_URL) return false;
   try{
-    const r = await fetch(`${FIREBASE_URL}/${key}.json`, {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(value)
+    const r = await fetch(APPS_SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight
+      body: JSON.stringify({key, data: value})
     });
-    if(!r.ok) console.error('[SterileStock] Firebase PUT failed', key, r.status, r.statusText);
+    if(!r.ok) console.error('[SterileStock] AppsScript POST failed', key, r.status, r.statusText);
     return r.ok;
-  }catch(e){ console.error('[SterileStock] Firebase PUT error', key, e); return false; }
+  }catch(e){ console.error('[SterileStock] AppsScript POST error', key, e); return false; }
 }
 function localGet(key, fallback){
   try{ const v = localStorage.getItem('sterile-'+key); return v ? JSON.parse(v) : fallback; }
@@ -687,7 +689,7 @@ function localSet(key, value){
   try{ localStorage.setItem('sterile-'+key, JSON.stringify(value)); }catch(e){}
 }
 async function loadData(){
-  if(!FIREBASE_URL){
+  if(!APPS_SCRIPT_URL){
     items = localGet('items', []);
     logs = localGet('usage-logs', []);
     catalog = localGet('catalog', []);
@@ -716,7 +718,7 @@ async function loadData(){
 async function saveItems(){
   localSet('items', items);
   const ok = await cloudSet('items', items);
-  if(FIREBASE_URL && !ok) showToast('บันทึกขึ้นฐานข้อมูลกลางไม่สำเร็จ (บันทึกไว้ในเครื่องนี้ชั่วคราว)');
+  if(APPS_SCRIPT_URL && !ok) showToast('บันทึกขึ้นฐานข้อมูลกลางไม่สำเร็จ (บันทึกไว้ในเครื่องนี้ชั่วคราว)');
 }
 async function saveLogs(){
   localSet('usage-logs', logs);
@@ -725,11 +727,11 @@ async function saveLogs(){
 async function saveCatalog(){
   localSet('catalog', catalog);
   const ok = await cloudSet('catalog', catalog);
-  if(FIREBASE_URL && !ok) showToast('บันทึกรายการมาตรฐานขึ้นฐานข้อมูลกลางไม่สำเร็จ');
+  if(APPS_SCRIPT_URL && !ok) showToast('บันทึกรายการมาตรฐานขึ้นฐานข้อมูลกลางไม่สำเร็จ');
 }
 // Poll for changes from other devices every 10s (skip while a modal is open so we don't yank focus)
 setInterval(()=>{
-  if(!FIREBASE_URL) return;
+  if(!APPS_SCRIPT_URL) return;
   const modalOpen = document.querySelector('.overlay.active');
   if(modalOpen) return;
   loadData();
