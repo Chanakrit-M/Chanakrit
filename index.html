@@ -659,26 +659,65 @@ function setSyncStatus(state){
     el.style.display='none';
   }
 }
+function jsonpRequest(url, timeoutMs){
+  return new Promise((resolve)=>{
+    const cbName = 'sscb_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let done = false;
+    const cleanup = ()=>{ try{ delete window[cbName]; }catch(e){} if(script.parentNode) script.parentNode.removeChild(script); };
+    window[cbName] = (data)=>{ if(done) return; done=true; cleanup(); resolve(data); };
+    script.onerror = ()=>{ if(done) return; done=true; cleanup(); resolve(null); };
+    script.src = url + (url.includes('?')?'&':'?') + 'callback=' + cbName;
+    document.body.appendChild(script);
+    setTimeout(()=>{ if(done) return; done=true; cleanup(); resolve(null); }, timeoutMs||10000);
+  });
+}
+function formPostRequest(url, payloadObj){
+  return new Promise((resolve)=>{
+    const iframeName = 'ssframe_' + Math.random().toString(36).slice(2);
+    const iframe = document.createElement('iframe');
+    iframe.name = iframeName;
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
+    form.target = iframeName;
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify(payloadObj);
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    let resolved = false;
+    const finish = (ok)=>{
+      if(resolved) return; resolved = true;
+      setTimeout(()=>{
+        if(form.parentNode) form.parentNode.removeChild(form);
+        if(iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      }, 1000);
+      resolve(ok);
+    };
+    iframe.addEventListener('load', ()=> finish(true));
+    setTimeout(()=> finish(true), 4000); // fire-and-forget; periodic 10s resync reconciles any true failures
+    form.submit();
+  });
+}
 async function cloudGet(key){
   if(!APPS_SCRIPT_URL) return null;
   try{
-    const r = await fetch(`${APPS_SCRIPT_URL}?key=${encodeURIComponent(key)}`, {cache:'no-store'});
-    if(!r.ok){ console.error('[SterileStock] AppsScript GET failed', key, r.status, r.statusText); return null; }
-    const text = await r.text();
-    if(text==='null' || !text) return null;
-    return JSON.parse(text);
+    const data = await jsonpRequest(`${APPS_SCRIPT_URL}?key=${encodeURIComponent(key)}`, 10000);
+    return data;
   }catch(e){ console.error('[SterileStock] AppsScript GET error', key, e); return null; }
 }
 async function cloudSet(key, value){
   if(!APPS_SCRIPT_URL) return false;
   try{
-    const r = await fetch(APPS_SCRIPT_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight
-      body: JSON.stringify({key, data: value})
-    });
-    if(!r.ok) console.error('[SterileStock] AppsScript POST failed', key, r.status, r.statusText);
-    return r.ok;
+    await formPostRequest(APPS_SCRIPT_URL, {key, data: value});
+    return true;
   }catch(e){ console.error('[SterileStock] AppsScript POST error', key, e); return false; }
 }
 function localGet(key, fallback){
