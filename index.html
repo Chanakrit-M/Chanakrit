@@ -107,6 +107,8 @@ input,select,textarea{font-family:inherit;}
 .btn-danger{border-color:var(--expired);color:var(--expired);background:#fff;}
 .btn-danger:hover{background:var(--expired-pale);}
 .btn-sm{padding:6px 12px;font-size:12.5px;border-radius:8px;}
+.btn-link-muted{background:none;border:none;color:var(--steel);font-size:11.5px;text-decoration:underline;cursor:pointer;padding:6px 4px;}
+.btn-link-muted:hover{color:var(--ink);}
 .btn:disabled{opacity:0.4;cursor:not-allowed;}
 
 .content{padding:26px 30px 96px;flex:1;}
@@ -380,18 +382,15 @@ input,select,textarea{font-family:inherit;}
       <div class="view" id="view-print">
         <h3 class="section-title">เลือกชุดที่ต้องการพิมพ์สติกเกอร์</h3>
         <div class="print-picker" id="print-picker"></div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-          <button class="btn btn-primary" id="btn-print-now">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 V3 h12 v6"/><rect x="6" y="14" width="12" height="7"/><rect x="4" y="9" width="16" height="7" rx="1.5"/></svg>
-            พิมพ์สติกเกอร์ที่เลือก (ผ่านเบราว์เซอร์)
-          </button>
-          <button class="btn btn-outline-blue" id="btn-download-zpl">
+        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-primary" id="btn-download-zpl">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15 v4 a2 2 0 0 1-2 2 H5 a2 2 0 0 1-2-2 v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            ดาวน์โหลดไฟล์ ZPL (พิมพ์ตรง แม่นยำกว่า)
+            พิมพ์สติกเกอร์
           </button>
           <button class="btn" id="btn-select-all-print">เลือกทั้งหมด</button>
+          <button class="btn-link-muted" id="btn-print-now" type="button">พิมพ์ผ่านเบราว์เซอร์ (ไม่แนะนำ — ไม่ตรงกับเครื่องพิมพ์รุ่นนี้)</button>
         </div>
-        <p style="font-size:11.5px;color:var(--steel);margin:0 0 20px;">ถ้าพิมพ์ผ่านเบราว์เซอร์แล้วขนาด/ตำแหน่งไม่ตรง ให้ใช้ปุ่ม "ดาวน์โหลดไฟล์ ZPL" แทน แล้วส่งไฟล์ที่ได้เข้าเครื่องพิมพ์ Zebra โดยตรงผ่านโปรแกรม Zebra Setup Utilities (เมนู "Open Communication with Printer" → "Send file")</p>
+        <p style="font-size:11.5px;color:var(--steel);margin:0 0 20px;">กดปุ่มด้านบน ระบบจะพิมพ์สติกเกอร์ให้อัตโนมัติภายในไม่กี่วินาที</p>
         <h3 class="section-title">ตัวอย่างสติกเกอร์</h3>
         <div class="label-preview-wrap">
           <div class="label-sheet" id="label-preview"></div>
@@ -1364,15 +1363,14 @@ document.getElementById('btn-receive-save').addEventListener('click', async ()=>
 
   const wrap = document.getElementById('receive-print-preview');
   wrap.innerHTML = `<p style="font-size:12.5px;color:var(--steel);margin-bottom:8px;">พร้อมพิมพ์สติกเกอร์สำหรับติดชุดนี้</p>` + stickerHTML(newItem, 'recv');
-  wrap.innerHTML += `<div style="display:flex;gap:8px;margin-top:10px;">
-    <button class="btn btn-primary" id="btn-print-receive" style="flex:1;justify-content:center;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 V3 h12 v6"/><rect x="6" y="14" width="12" height="7"/><rect x="4" y="9" width="16" height="7" rx="1.5"/></svg>
-      พิมพ์ (เบราว์เซอร์)
-    </button>
-    <button class="btn btn-outline-blue" id="btn-zpl-receive" style="flex:1;justify-content:center;">
+  wrap.innerHTML += `<div style="margin-top:10px;">
+    <button class="btn btn-primary" id="btn-zpl-receive" style="width:100%;justify-content:center;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15 v4 a2 2 0 0 1-2 2 H5 a2 2 0 0 1-2-2 v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      ดาวน์โหลด ZPL
+      พิมพ์สติกเกอร์
     </button>
+    <div style="text-align:center;margin-top:6px;">
+      <button class="btn-link-muted" id="btn-print-receive" type="button">พิมพ์ผ่านเบราว์เซอร์ (ไม่แนะนำ)</button>
+    </div>
   </div>`;
   try{ const svgEl = wrap.querySelector('.bc-recv'); if(svgEl) JsBarcode(svgEl, newItem.code, {height:28, width:1.2, fontSize:8, margin:0, displayValue:false}); }catch(e){}
   try{ const qrEl = wrap.querySelector('.qr-recv'); if(qrEl) new QRCode(qrEl, {text:newItem.code, width:52, height:52, colorDark:"#141F1B", colorLight:"#ffffff"}); }catch(e){}
