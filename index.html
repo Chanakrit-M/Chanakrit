@@ -788,27 +788,32 @@ async function loadData(){
 }
 async function saveItems(){
   localSet('items', items);
-  const ok = await cloudSet('items', items);
-  if(APPS_SCRIPT_URL && !ok) showToast('บันทึกขึ้นฐานข้อมูลกลางไม่สำเร็จ (บันทึกไว้ในเครื่องนี้ชั่วคราว)');
+  cloudSet('items', items).then(ok=>{
+    if(APPS_SCRIPT_URL && !ok) showToast('บันทึกขึ้นฐานข้อมูลกลางไม่สำเร็จ (บันทึกไว้ในเครื่องนี้ชั่วคราว)');
+  });
 }
 async function saveLogs(){
   localSet('usage-logs', logs);
-  await cloudSet('usage-logs', logs);
+  cloudSet('usage-logs', logs);
 }
 async function saveCatalog(){
   localSet('catalog', catalog);
-  const ok = await cloudSet('catalog', catalog);
-  if(APPS_SCRIPT_URL && !ok) showToast('บันทึกรายการมาตรฐานขึ้นฐานข้อมูลกลางไม่สำเร็จ');
+  cloudSet('catalog', catalog).then(ok=>{
+    if(APPS_SCRIPT_URL && !ok) showToast('บันทึกรายการมาตรฐานขึ้นฐานข้อมูลกลางไม่สำเร็จ');
+  });
 }
 // Poll for changes from other devices every 10s (skip while a modal is open so we don't yank focus)
 let appUnlocked = false; // set true only after successful login
-setInterval(()=>{
+let pollInFlight = false;
+setInterval(async ()=>{
   if(!APPS_SCRIPT_URL) return;
-  if(!appUnlocked) return; // ไม่ยิง request ตอนยังไม่ล็อกอิน
+  if(!appUnlocked) return;
+  if(pollInFlight) return; // รอบก่อนยังไม่เสร็จ ข้ามรอบนี้ไปก่อน
   const modalOpen = document.querySelector('.overlay.active');
   if(modalOpen) return;
-  loadData();
-}, 10000);
+  pollInFlight = true;
+  try{ await loadData(); } finally { pollInFlight = false; }
+}, 30000);
 
 /* ---------- NAV ---------- */
 const VIEW_TITLES = {dashboard:'ภาพรวม', inventory:'คลังสต๊อก', print:'พิมพ์สติกเกอร์', scan:'สแกนใช้งาน', standards:'ตรวจมาตรฐาน', reports:'รายงาน'};
