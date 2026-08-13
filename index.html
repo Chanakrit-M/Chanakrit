@@ -1832,6 +1832,7 @@ function unlockApp(){
   gate.classList.add('hidden');
   gate.style.display = 'none'; // inline style ต้องตั้งตรงนี้ เพราะ inline style เดิมชนะ CSS class เสมอ
   document.getElementById('app').classList.add('unlocked');
+  setView('dashboard'); // ตั้งค่าเริ่มต้นให้โชว์หน้าภาพรวมทันทีตอนเข้าแอป
   populateItemNameSuggestions();
   loadData();
 }
