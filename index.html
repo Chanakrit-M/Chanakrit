@@ -307,6 +307,34 @@ input,select,textarea{font-family:inherit;}
   .plabel{page-break-after:always; page-break-inside:avoid;}
   .plabel:last-child{page-break-after:auto;}
 }
+  /* ---------- THAI DATE PICKER ---------- */
+.date-native-hidden{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+.thai-date-display{cursor:pointer; background:var(--sterile-white);}
+.thai-date-wrap{position:relative;}
+.thai-datepicker-pop{
+  position:absolute; top:calc(100% + 6px); left:0; z-index:60;
+  background:#fff; border:1px solid var(--line-strong); border-radius:12px;
+  box-shadow:var(--shadow-pop); padding:12px; width:264px; display:none;
+}
+.thai-datepicker-pop.open{display:block;}
+.tdp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.tdp-head b{font-size:13.5px;}
+.tdp-nav{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--steel);}
+.tdp-nav:hover{background:var(--sterile-white);}
+.tdp-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px; text-align:center;}
+.tdp-dow{font-size:10.5px; color:var(--steel); font-weight:600; padding:4px 0;}
+.tdp-day{font-size:12.5px; padding:6px 0; border-radius:7px; cursor:pointer; color:var(--ink);}
+.tdp-day:hover{background:var(--sterile-white);}
+.tdp-day.tdp-muted{color:var(--line-strong);}
+.tdp-day.tdp-today{box-shadow:inset 0 0 0 1px var(--scrub-green-mid);}
+.tdp-day.tdp-selected{background:var(--scrub-green-mid); color:#fff; font-weight:700;}
+.tdp-month-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+.tdp-month-cell{font-size:12.5px; padding:9px 4px; border-radius:8px; text-align:center; cursor:pointer;}
+.tdp-month-cell:hover{background:var(--sterile-white);}
+.tdp-month-cell.tdp-selected{background:var(--scrub-green-mid); color:#fff; font-weight:700;}
 </style>
 </head>
 <body>
@@ -481,10 +509,20 @@ input,select,textarea{font-family:inherit;}
               <div class="field"><label>จำนวน</label><input id="r-qty" type="number" min="1" value="1"></div>
             </div>
             <div class="field-row">
-              <div class="field"><label>วันที่ทำให้ปลอดเชื้อ</label><input id="r-sterile-date" type="date"></div>
-              <div class="field"><label>อายุการเก็บ (วัน)</label><input id="r-shelf-days" type="number" min="1" value="365"></div>
-            </div>
-            <div class="field"><label>วันหมดอายุ (คำนวณอัตโนมัติ — แก้ไขได้)</label><input id="r-expiry" type="date"></div>
+  <div class="field"><label>วันที่ทำให้ปลอดเชื้อ</label>
+    <div class="thai-date-wrap">
+      <input id="r-sterile-date" type="date" class="date-native-hidden">
+      <input id="r-sterile-date-thai" type="text" class="thai-date-display" readonly placeholder="เลือกวันที่">
+    </div>
+  </div>
+  <div class="field"><label>อายุการเก็บ (วัน)</label><input id="r-shelf-days" type="number" min="1" value="365"></div>
+</div>
+<div class="field"><label>วันหมดอายุ (คำนวณอัตโนมัติ — แก้ไขได้)</label>
+  <div class="thai-date-wrap">
+    <input id="r-expiry" type="date" class="date-native-hidden">
+    <input id="r-expiry-thai" type="text" class="thai-date-display" readonly placeholder="เลือกวันที่">
+  </div>
+</div>
             <div class="field">
               <label>วิธีทำให้ปลอดเชื้อ</label>
               <select id="r-method">
@@ -521,10 +559,13 @@ input,select,textarea{font-family:inherit;}
       <!-- REPORTS -->
       <div class="view" id="view-reports">
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;">
-          <div class="field" style="margin-bottom:0;">
-            <label>เลือกเดือน</label>
-            <input type="month" id="report-month">
-          </div>
+<div class="field" style="margin-bottom:0;">
+  <label>เลือกเดือน</label>
+  <div class="thai-date-wrap">
+    <input type="month" id="report-month" class="date-native-hidden">
+    <input type="text" id="report-month-thai" class="thai-date-display" readonly placeholder="เลือกเดือน">
+  </div>
+</div>
           <button class="btn" id="btn-export-report">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15 v4 a2 2 0 0 1-2 2 H5 a2 2 0 0 1-2-2 v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             ดาวน์โหลด CSV
@@ -759,6 +800,7 @@ function localGet(key, fallback){
 function localSet(key, value){
   try{ localStorage.setItem('sterile-'+key, JSON.stringify(value)); }catch(e){}
 }
+  let pendingSaves = { items: 0, 'usage-logs': 0, catalog: 0 };
 async function loadData(){
   if(!APPS_SCRIPT_URL){
     items = localGet('items', []);
@@ -772,33 +814,43 @@ async function loadData(){
     cloudGet('items'), cloudGet('usage-logs'), cloudGet('catalog')
   ]);
   if(!rItems.ok && !rLogs.ok && !rCatalog.ok){
-    // couldn't reach the server at all (all three requests genuinely failed/timed out)
     items = localGet('items', []);
     logs = localGet('usage-logs', []);
     catalog = localGet('catalog', []);
     setSyncStatus('offline');
   }else{
-    items = rItems.ok ? (rItems.data || []) : localGet('items', []);
-    logs = rLogs.ok ? (rLogs.data || []) : localGet('usage-logs', []);
-    catalog = rCatalog.ok ? (rCatalog.data || []) : localGet('catalog', []);
-    localSet('items', items); localSet('usage-logs', logs); localSet('catalog', catalog);
+    // ถ้ามีการบันทึก (save) ค้างอยู่สำหรับ key นั้น ห้ามเอาข้อมูลจาก cloud มาทับ
+    // เพราะข้อมูลที่ได้มาอาจเป็นเวอร์ชันเก่าก่อนที่การบันทึกล่าสุดจะเสร็จ
+    if(rItems.ok && pendingSaves.items===0){ items = rItems.data || []; localSet('items', items); }
+    else if(!rItems.ok && pendingSaves.items===0){ items = localGet('items', []); }
+    if(rLogs.ok && pendingSaves['usage-logs']===0){ logs = rLogs.data || []; localSet('usage-logs', logs); }
+    else if(!rLogs.ok && pendingSaves['usage-logs']===0){ logs = localGet('usage-logs', []); }
+    if(rCatalog.ok && pendingSaves.catalog===0){ catalog = rCatalog.data || []; localSet('catalog', catalog); }
+    else if(!rCatalog.ok && pendingSaves.catalog===0){ catalog = localGet('catalog', []); }
     setSyncStatus('ok');
   }
   renderAll();
 }
 async function saveItems(){
   localSet('items', items);
+  pendingSaves.items++;
   cloudSet('items', items).then(ok=>{
+    pendingSaves.items = Math.max(0, pendingSaves.items-1);
     if(APPS_SCRIPT_URL && !ok) showToast('บันทึกขึ้นฐานข้อมูลกลางไม่สำเร็จ (บันทึกไว้ในเครื่องนี้ชั่วคราว)');
   });
 }
 async function saveLogs(){
   localSet('usage-logs', logs);
-  cloudSet('usage-logs', logs);
+  pendingSaves['usage-logs']++;
+  cloudSet('usage-logs', logs).then(()=>{
+    pendingSaves['usage-logs'] = Math.max(0, pendingSaves['usage-logs']-1);
+  });
 }
 async function saveCatalog(){
   localSet('catalog', catalog);
+  pendingSaves.catalog++;
   cloudSet('catalog', catalog).then(ok=>{
+    pendingSaves.catalog = Math.max(0, pendingSaves.catalog-1);
     if(APPS_SCRIPT_URL && !ok) showToast('บันทึกรายการมาตรฐานขึ้นฐานข้อมูลกลางไม่สำเร็จ');
   });
 }
@@ -979,8 +1031,10 @@ function openAddModal(){
   document.getElementById('f-name').value='';
   document.getElementById('f-lot').value='';
   document.getElementById('f-qty').value=1;
-  document.getElementById('f-sterile-date').value=todayStr();
-  document.getElementById('f-expiry').value='';
+document.getElementById('f-sterile-date').value=todayStr();
+document.getElementById('f-sterile-date').dispatchEvent(new Event('change'));
+document.getElementById('f-expiry').value='';
+document.getElementById('f-expiry').dispatchEvent(new Event('change'));
   document.getElementById('f-method').value='Autoclave (ไอน้ำ)';
   document.getElementById('f-notes').value='';
   document.getElementById('f-checklist').innerHTML = buildChecklistHTML([true,true,true,true]);
@@ -994,7 +1048,9 @@ function openEditModal(item){
   document.getElementById('f-lot').value=item.lot||'';
   document.getElementById('f-qty').value=item.qty;
   document.getElementById('f-sterile-date').value=item.sterileDate||'';
-  document.getElementById('f-expiry').value=item.expiry||'';
+document.getElementById('f-sterile-date').dispatchEvent(new Event('change'));
+document.getElementById('f-expiry').value=item.expiry||'';
+document.getElementById('f-expiry').dispatchEvent(new Event('change'));
   document.getElementById('f-method').value=item.method||'Autoclave (ไอน้ำ)';
   document.getElementById('f-notes').value=item.notes||'';
   document.getElementById('f-checklist').innerHTML = buildChecklistHTML(item.checklist);
@@ -1400,7 +1456,10 @@ function addDaysToDate(dateStr, days){
 function recalcExpiry(){
   const sd = document.getElementById('r-sterile-date').value;
   const days = document.getElementById('r-shelf-days').value;
-  if(sd && days) document.getElementById('r-expiry').value = addDaysToDate(sd, days);
+  if(sd && days){
+    document.getElementById('r-expiry').value = addDaysToDate(sd, days);
+    document.getElementById('r-expiry').dispatchEvent(new Event('change'));
+  }
 }
 document.getElementById('r-sterile-date').addEventListener('change', recalcExpiry);
 document.getElementById('r-shelf-days').addEventListener('input', recalcExpiry);
@@ -1507,7 +1566,8 @@ document.getElementById('btn-receive-save').addEventListener('click', async ()=>
   document.getElementById('r-lot').value='';
   document.getElementById('r-qty').value=1;
   document.getElementById('r-expiry').value='';
-  document.getElementById('r-sterile-date').value = todayStr();
+document.getElementById('r-sterile-date').value = todayStr();
+document.getElementById('r-sterile-date').dispatchEvent(new Event('change'));
   document.getElementById('r-shelf-days').value = 365;
   document.getElementById('catalog-match').innerHTML='';
 });
@@ -1577,7 +1637,7 @@ function getReportData(monthValue){
 }
 function renderReportsView(){
   const monthInput = document.getElementById('report-month');
-  if(!monthInput.value) monthInput.value = currentMonthValue();
+if(!monthInput.value){ monthInput.value = currentMonthValue(); monthInput.dispatchEvent(new Event('change')); }
   const data = getReportData(monthInput.value);
   document.getElementById('report-total-count').textContent = data.totalCount;
   document.getElementById('report-item-types').textContent = data.itemTypes;
@@ -1620,7 +1680,150 @@ function populateItemNameSuggestions(){
   if(!dl) return;
   dl.innerHTML = CSSD_ITEM_NAMES.map(n=>`<option value="${escapeHtml(n)}">`).join('');
 }
+/* ---------- THAI DATE PICKER (ปฏิทินไทย พ.ศ. — ไม่ขึ้นกับภาษาของเครื่อง) ---------- */
+const THAI_MONTHS_FULL = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+const THAI_MONTHS_SHORT = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const THAI_DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
+function toBuddhistYear(y){ return y + 543; }
+function isoToThaiDisplay(iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return `${d.getDate()} ${THAI_MONTHS_FULL[d.getMonth()]} ${toBuddhistYear(d.getFullYear())}`;
+}
+function pad2(n){ return String(n).padStart(2,'0'); }
+function toIsoDate(y,m,d){ return `${y}-${pad2(m+1)}-${pad2(d)}`; }
 
+function attachThaiDatePicker(nativeId, displayId){
+  const nativeInput = document.getElementById(nativeId);
+  const displayInput = document.getElementById(displayId);
+  if(!nativeInput || !displayInput) return;
+  const wrap = displayInput.closest('.thai-date-wrap') || displayInput.parentElement;
+  let viewDate = new Date();
+
+  function syncDisplayFromNative(){
+    displayInput.value = nativeInput.value ? isoToThaiDisplay(nativeInput.value) : '';
+  }
+  function setNativeValue(iso){
+    nativeInput.value = iso;
+    nativeInput.dispatchEvent(new Event('change', {bubbles:true}));
+    nativeInput.dispatchEvent(new Event('input', {bubbles:true}));
+    syncDisplayFromNative();
+  }
+
+  const pop = document.createElement('div');
+  pop.className = 'thai-datepicker-pop';
+  wrap.appendChild(pop);
+
+  function render(){
+    const y = viewDate.getFullYear(), m = viewDate.getMonth();
+    const selectedIso = nativeInput.value;
+    const first = new Date(y, m, 1);
+    const startDow = first.getDay();
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const daysInPrevMonth = new Date(y, m, 0).getDate();
+    let html = `<div class="tdp-head">
+      <button type="button" class="tdp-nav" data-nav="-1">‹</button>
+      <b>${THAI_MONTHS_FULL[m]} ${toBuddhistYear(y)}</b>
+      <button type="button" class="tdp-nav" data-nav="1">›</button>
+    </div><div class="tdp-grid">`;
+    THAI_DOW.forEach(d=>{ html += `<div class="tdp-dow">${d}</div>`; });
+    for(let i=0;i<startDow;i++){
+      const dnum = daysInPrevMonth - startDow + 1 + i;
+      html += `<div class="tdp-day tdp-muted">${dnum}</div>`;
+    }
+    const todayIso = todayStr();
+    for(let d=1; d<=daysInMonth; d++){
+      const iso = toIsoDate(y,m,d);
+      const cls = ['tdp-day'];
+      if(iso===todayIso) cls.push('tdp-today');
+      if(iso===selectedIso) cls.push('tdp-selected');
+      html += `<div class="${cls.join(' ')}" data-iso="${iso}">${d}</div>`;
+    }
+    const totalCells = startDow + daysInMonth;
+    const trailing = (7 - (totalCells % 7)) % 7;
+    for(let d=1; d<=trailing; d++){ html += `<div class="tdp-day tdp-muted">${d}</div>`; }
+    html += `</div>`;
+    pop.innerHTML = html;
+  }
+  function openPop(){
+    if(nativeInput.value){ viewDate = new Date(nativeInput.value + 'T00:00:00'); }
+    render(); pop.classList.add('open');
+    document.addEventListener('click', onOutsideClick, true);
+  }
+  function closePop(){ pop.classList.remove('open'); document.removeEventListener('click', onOutsideClick, true); }
+  function onOutsideClick(e){ if(!wrap.contains(e.target)) closePop(); }
+
+  displayInput.addEventListener('click', ()=>{ pop.classList.contains('open') ? closePop() : openPop(); });
+  pop.addEventListener('click', (e)=>{
+    const navBtn = e.target.closest('[data-nav]');
+    if(navBtn){ viewDate.setMonth(viewDate.getMonth() + parseInt(navBtn.dataset.nav,10)); render(); return; }
+    const dayEl = e.target.closest('.tdp-day:not(.tdp-muted)');
+    if(dayEl){ setNativeValue(dayEl.dataset.iso); closePop(); }
+  });
+  nativeInput.addEventListener('change', syncDisplayFromNative);
+  syncDisplayFromNative();
+}
+
+function attachThaiMonthPicker(nativeId, displayId){
+  const nativeInput = document.getElementById(nativeId);
+  const displayInput = document.getElementById(displayId);
+  if(!nativeInput || !displayInput) return;
+  const wrap = displayInput.closest('.thai-date-wrap') || displayInput.parentElement;
+  let viewYear = new Date().getFullYear();
+
+  function syncDisplayFromNative(){
+    if(!nativeInput.value){ displayInput.value=''; return; }
+    const [y,m] = nativeInput.value.split('-').map(Number);
+    displayInput.value = `${THAI_MONTHS_FULL[m-1]} ${toBuddhistYear(y)}`;
+  }
+  function setNativeValue(y,m){
+    nativeInput.value = `${y}-${pad2(m)}`;
+    nativeInput.dispatchEvent(new Event('change', {bubbles:true}));
+    syncDisplayFromNative();
+  }
+
+  const pop = document.createElement('div');
+  pop.className = 'thai-datepicker-pop';
+  wrap.appendChild(pop);
+
+  function render(){
+    const [selY, selM] = nativeInput.value ? nativeInput.value.split('-').map(Number) : [null,null];
+    let html = `<div class="tdp-head">
+      <button type="button" class="tdp-nav" data-ynav="-1">‹</button>
+      <b>พ.ศ. ${toBuddhistYear(viewYear)}</b>
+      <button type="button" class="tdp-nav" data-ynav="1">›</button>
+    </div><div class="tdp-month-grid">`;
+    THAI_MONTHS_SHORT.forEach((mn,idx)=>{
+      const sel = (selY===viewYear && selM===idx+1) ? 'tdp-selected' : '';
+      html += `<div class="tdp-month-cell ${sel}" data-m="${idx+1}">${mn}</div>`;
+    });
+    html += `</div>`;
+    pop.innerHTML = html;
+  }
+  function openPop(){
+    if(nativeInput.value){ viewYear = parseInt(nativeInput.value.split('-')[0],10); }
+    render(); pop.classList.add('open');
+    document.addEventListener('click', onOutsideClick, true);
+  }
+  function closePop(){ pop.classList.remove('open'); document.removeEventListener('click', onOutsideClick, true); }
+  function onOutsideClick(e){ if(!wrap.contains(e.target)) closePop(); }
+
+  displayInput.addEventListener('click', ()=>{ pop.classList.contains('open') ? closePop() : openPop(); });
+  pop.addEventListener('click', (e)=>{
+    const yBtn = e.target.closest('[data-ynav]');
+    if(yBtn){ viewYear += parseInt(yBtn.dataset.ynav,10); render(); return; }
+    const mCell = e.target.closest('[data-m]');
+    if(mCell){ setNativeValue(viewYear, parseInt(mCell.dataset.m,10)); closePop(); }
+  });
+  nativeInput.addEventListener('change', syncDisplayFromNative);
+  syncDisplayFromNative();
+}
+
+attachThaiDatePicker('f-sterile-date','f-sterile-date-thai');
+attachThaiDatePicker('f-expiry','f-expiry-thai');
+attachThaiDatePicker('r-sterile-date','r-sterile-date-thai');
+attachThaiDatePicker('r-expiry','r-expiry-thai');
+attachThaiMonthPicker('report-month','report-month-thai');
 /* ---------- LOGIN GATE ---------- */
 const DEFAULT_PIN = "2569"; // used only if no PIN has ever been set in the sheet yet
 function unlockApp(){
