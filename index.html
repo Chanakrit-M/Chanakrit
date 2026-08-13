@@ -1620,7 +1620,9 @@ function populateItemNameSuggestions(){
 const DEFAULT_PIN = "2569"; // used only if no PIN has ever been set in the sheet yet
 function unlockApp(){
   appUnlocked = true;
-  document.getElementById('login-gate').classList.add('hidden');
+  const gate = document.getElementById('login-gate');
+  gate.classList.add('hidden');
+  gate.style.display = 'none'; // inline style ต้องตั้งตรงนี้ เพราะ inline style เดิมชนะ CSS class เสมอ
   document.getElementById('app').classList.add('unlocked');
   populateItemNameSuggestions();
   loadData();
