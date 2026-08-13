@@ -685,12 +685,22 @@ function jsonpRequest(url, timeoutMs){
     const cbName = 'sscb_' + Math.random().toString(36).slice(2);
     const script = document.createElement('script');
     let done = false;
-    const cleanup = ()=>{ try{ delete window[cbName]; }catch(e){} if(script.parentNode) script.parentNode.removeChild(script); };
-    window[cbName] = (data)=>{ if(done) return; done=true; cleanup(); resolve({ok:true, data}); };
-    script.onerror = ()=>{ if(done) return; done=true; cleanup(); resolve({ok:false, data:null}); };
+    // เมื่อ timeout ห้ามลบ callback ทันที เพราะ Apps Script อาจกำลังตอบกลับมาช้าๆ
+    // อยู่ ถ้าลบไปแล้วมันจะเรียกฟังก์ชันที่ไม่มีอยู่ -> ReferenceError
+    const removeScriptTag = ()=>{ if(script.parentNode) script.parentNode.removeChild(script); };
+    const finalCleanup = ()=>{ try{ delete window[cbName]; }catch(e){} };
+    window[cbName] = (data)=>{ if(done) return; done=true; removeScriptTag(); finalCleanup(); resolve({ok:true, data}); };
+    script.onerror = ()=>{ if(done) return; done=true; removeScriptTag(); finalCleanup(); resolve({ok:false, data:null}); };
     script.src = url + (url.includes('?')?'&':'?') + 'callback=' + cbName;
     document.body.appendChild(script);
-    setTimeout(()=>{ if(done) return; done=true; cleanup(); resolve({ok:false, data:null}); }, timeoutMs||10000);
+    setTimeout(()=>{
+      if(done) return;
+      done = true;
+      removeScriptTag();
+      window[cbName] = function(){}; // รับ response ที่มาช้า โดยไม่ error
+      resolve({ok:false, data:null});
+      setTimeout(finalCleanup, 30000); // ค่อยลบทิ้งจริงๆ อีก 30 วิให้หลัง
+    }, timeoutMs||18000);
   });
 }
 function formPostRequest(url, payloadObj){
@@ -791,8 +801,10 @@ async function saveCatalog(){
   if(APPS_SCRIPT_URL && !ok) showToast('บันทึกรายการมาตรฐานขึ้นฐานข้อมูลกลางไม่สำเร็จ');
 }
 // Poll for changes from other devices every 10s (skip while a modal is open so we don't yank focus)
+let appUnlocked = false; // set true only after successful login
 setInterval(()=>{
   if(!APPS_SCRIPT_URL) return;
+  if(!appUnlocked) return; // ไม่ยิง request ตอนยังไม่ล็อกอิน
   const modalOpen = document.querySelector('.overlay.active');
   if(modalOpen) return;
   loadData();
@@ -1607,6 +1619,7 @@ function populateItemNameSuggestions(){
 /* ---------- LOGIN GATE ---------- */
 const DEFAULT_PIN = "2569"; // used only if no PIN has ever been set in the sheet yet
 function unlockApp(){
+  appUnlocked = true;
   document.getElementById('login-gate').classList.add('hidden');
   document.getElementById('app').classList.add('unlocked');
   populateItemNameSuggestions();
