@@ -465,15 +465,24 @@ input,select,textarea{font-family:inherit;}
             <p style="font-size:11.5px;color:var(--steel);margin:10px 0 0;">หากกล้องใช้งานไม่ได้ในอุปกรณ์นี้ ให้กรอกรหัสด้วยตนเองด้านล่าง</p>
             <div class="manual-row">
               <input id="manual-code" placeholder="สแกน QR ของแอป หรือบาร์โค้ดจ่ายกลางก็ได้" class="mono">
-              <button class="btn btn-outline-blue" id="btn-manual-find">ค้นหา</button>
+              <button class="btn btn-outline-blue" id="btn-manual-find">เพิ่ม</button>
             </div>
+            <div id="case-scan-feedback"></div>
           </div>
           <div>
-            <div class="scan-result-card" id="scan-result">
-              <div class="empty-state" style="padding:20px 10px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7 V4 a1 1 0 0 1 1-1 h3"/><path d="M21 7 V4 a1 1 0 0 0-1-1 h-3"/><path d="M3 17 v3 a1 1 0 0 0 1 1 h3"/><path d="M21 17 v3 a1 1 0 0 1-1 1 h-3"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
-                <p>สแกน QR ของแอป หรือบาร์โค้ดเดิมจากจ่ายกลางก็ได้ — เพื่อค้นหาชุดและบันทึกการใช้งาน</p>
+            <div class="scan-panel" id="case-panel">
+              <h3 class="section-title" style="margin-top:0;">ข้อมูลเคสผ่าตัด</h3>
+              <div class="field-row">
+                <div class="field"><label>HN ผู้ป่วย</label><input id="case-hn" class="mono" placeholder="เช่น 68-012345"></div>
+                <div class="field"><label>การผ่าตัด</label><input id="case-op" placeholder="เช่น Appendectomy"></div>
               </div>
+              <label style="display:block;font-size:12.5px;font-weight:600;color:var(--steel);margin:10px 0 6px;">เครื่องมือที่ใช้ในเคสนี้</label>
+              <div id="case-item-list"></div>
+              <button class="btn btn-primary" id="btn-save-case" style="width:100%;justify-content:center;margin-top:12px;" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                บันทึกทั้งหมด
+              </button>
+              <button class="btn-link-muted" id="btn-clear-case" type="button" style="display:block;margin-top:6px;text-align:center;width:100%;">เริ่มเคสใหม่ / ล้างรายการ</button>
             </div>
             <div class="scan-panel scan-log">
               <h3 class="section-title" style="margin-top:0;">ประวัติการใช้ล่าสุด</h3>
@@ -630,7 +639,18 @@ input,select,textarea{font-family:inherit;}
     </div>
   </div>
 </div>
-
+<!-- QUICK USE MODAL (HN + operation required) -->
+<div class="overlay" id="quickuse-overlay">
+  <div class="modal" style="max-width:380px;">
+    <h2 id="quickuse-title">บันทึกการใช้งาน</h2>
+    <div class="field"><label>HN ผู้ป่วย</label><input id="qu-hn" class="mono" placeholder="เช่น 68-012345"></div>
+    <div class="field"><label>การผ่าตัด</label><input id="qu-op" placeholder="เช่น Appendectomy"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancel-quickuse">ยกเลิก</button>
+      <button class="btn btn-primary" id="btn-confirm-quickuse">ยืนยันว่าใช้แล้ว</button>
+    </div>
+  </div>
+</div>
 <!-- ITEM DETAIL MODAL -->
 <div class="overlay" id="detail-overlay">
   <div class="modal" id="detail-modal-content"></div>
@@ -877,9 +897,10 @@ function setView(v){
   document.querySelectorAll('.bn-item').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v];
   if(v !== 'scan'){ stopScanner(); stopReceiveScanner(); }
-  if(v === 'print') renderPrintView();
+    if(v === 'print') renderPrintView();
   if(v === 'standards') renderStandardsView();
   if(v === 'reports') renderReportsView();
+  if(v === 'scan') renderCaseItemList();
 }
 document.getElementById('nav').addEventListener('click', e=>{
   const btn = e.target.closest('.nav-item'); if(!btn) return;
@@ -997,7 +1018,7 @@ document.getElementById('app').addEventListener('click', e=>{
   if(action==='edit') openEditModal(item);
   if(action==='view') openDetailModal(item);
   if(action==='delete') deleteItem(item);
-  if(action==='use') useOne(item, 'manual-inventory');
+    if(action==='use') openQuickUseModal(item);
 });
 
 async function deleteItem(item){
@@ -1007,11 +1028,31 @@ async function deleteItem(item){
   renderAll();
   showToast('ลบรายการแล้ว', true);
 }
-async function useOne(item, source){
+  let quickUseItemId = null;
+function openQuickUseModal(item){
+  quickUseItemId = item.id;
+  document.getElementById('quickuse-title').textContent = `บันทึกการใช้งาน: ${item.name}`;
+  document.getElementById('qu-hn').value='';
+  document.getElementById('qu-op').value='';
+  document.getElementById('quickuse-overlay').classList.add('active');
+  document.getElementById('qu-hn').focus();
+}
+document.getElementById('btn-cancel-quickuse').addEventListener('click', ()=>document.getElementById('quickuse-overlay').classList.remove('active'));
+document.getElementById('quickuse-overlay').addEventListener('click', e=>{ if(e.target.id==='quickuse-overlay') e.currentTarget.classList.remove('active'); });
+document.getElementById('btn-confirm-quickuse').addEventListener('click', async ()=>{
+  const hn = document.getElementById('qu-hn').value.trim();
+  const op = document.getElementById('qu-op').value.trim();
+  if(!hn || !op){ showToast('กรุณากรอก HN และการผ่าตัดก่อนยืนยัน'); return; }
+  const item = items.find(i=>i.id===quickUseItemId);
+  document.getElementById('quickuse-overlay').classList.remove('active');
+  if(!item) return;
+  await useOne(item, 'manual-inventory', op, hn);
+});
+async function useOne(item, source, operation, hn){
   if(item.qty<=0){ showToast('ชุดนี้หมดสต๊อกแล้ว'); return; }
   item.qty -= 1;
-  logs.unshift({id:uid(), itemId:item.id, name:item.name, code:item.code, ts:Date.now(), source});
-  logs = logs.slice(0,200);
+  logs.unshift({id:uid(), itemId:item.id, name:item.name, code:item.code, ts:Date.now(), source, operation: operation||'', hn: hn||''});
+  logs = logs.slice(0,300);
   await saveItems(); await saveLogs();
   renderAll();
   showToast(`บันทึกการใช้งาน: ${item.name}`, true);
@@ -1152,7 +1193,7 @@ function openDetailModal(item){
     JsBarcode(svg, item.code, {height:50, width:1.6, fontSize:11, margin:4});
   }catch(e){}
   document.getElementById('btn-close-detail').onclick=()=>document.getElementById('detail-overlay').classList.remove('active');
-  document.getElementById('btn-use-from-detail').onclick=async ()=>{ await useOne(item,'detail'); document.getElementById('detail-overlay').classList.remove('active'); };
+    document.getElementById('btn-use-from-detail').onclick=()=>{ document.getElementById('detail-overlay').classList.remove('active'); openQuickUseModal(item); };
   document.getElementById('btn-goto-print').onclick=()=>{ document.getElementById('detail-overlay').classList.remove('active'); selectedForPrint = new Set([item.id]); setView('print'); };
 }
 document.getElementById('detail-overlay').addEventListener('click', e=>{ if(e.target.id==='detail-overlay') e.currentTarget.classList.remove('active'); });
@@ -1346,63 +1387,121 @@ document.getElementById('btn-download-zpl').addEventListener('click', async ()=>
 function findByCode(code){
   if(!code) return null;
   const c = code.trim().toUpperCase();
-  // 1) exact match by our own generated QR code
   const own = items.find(i=>i.code.toUpperCase()===c);
   if(own) return own;
-  // 2) fallback: scanned the ORIGINAL barcode from จ่ายกลาง (stored in the Lot field).
-  // Multiple batches of the same item type can share this barcode, so among matches
-  // with stock remaining, pick the one expiring soonest first (FEFO).
   const candidates = items.filter(i=>(i.lot||'').trim().toUpperCase()===c && i.qty>0);
   if(!candidates.length) return null;
   candidates.sort((a,b)=>daysUntil(a.expiry)-daysUntil(b.expiry));
   return candidates[0];
 }
-function renderScanResult(item, notFoundCode){
-  const box = document.getElementById('scan-result');
+
+let currentCase = { items: [] }; // {itemId, name, code, count}[]
+
+function renderCaseItemList(){
+  const el = document.getElementById('case-item-list');
+  if(!el) return;
+  if(!currentCase.items.length){
+    el.innerHTML = '<p style="font-size:12.5px;color:var(--steel);">ยังไม่ได้เพิ่มเครื่องมือ สแกนหรือค้นหาด้านซ้ายเพื่อเพิ่มรายการ</p>';
+  }else{
+    el.innerHTML = currentCase.items.map((ci,idx)=>{
+      const item = items.find(i=>i.id===ci.itemId);
+      const warn = item && !standardPass(item);
+      return `<div class="log-row">
+        <span>${escapeHtml(ci.name)}${warn?' <span style="color:var(--expired);font-size:11px;">⚠ ไม่ผ่านมาตรฐาน</span>':''}</span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span class="qty-tag">x${ci.count}</span>
+          <button type="button" class="icon-btn danger" data-remove-case="${idx}" title="ลบ" style="width:26px;height:26px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </span>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-remove-case]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        currentCase.items.splice(parseInt(b.dataset.removeCase,10),1);
+        renderCaseItemList();
+      });
+    });
+  }
+  const saveBtn = document.getElementById('btn-save-case');
+  if(saveBtn) saveBtn.disabled = currentCase.items.length===0;
+}
+
+function addItemToCase(item, notFoundCode){
+  const fb = document.getElementById('case-scan-feedback');
   if(!item){
-    box.innerHTML = `<div class="empty-state" style="padding:20px 10px;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--expired)" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-      <b style="color:var(--expired);">ไม่พบรหัสนี้ในระบบ</b><p class="mono">${escapeHtml(notFoundCode||'')}</p></div>`;
+    fb.innerHTML = `<div class="catalog-miss" style="margin-top:8px;">ไม่พบรหัสนี้ในระบบ: <span class="mono">${escapeHtml(notFoundCode||'')}</span></div>`;
     return;
   }
-  const st = statusOf(item);
-  box.innerHTML = `
-    <div class="status-pill status-${st}" style="margin-bottom:10px;">${STATUS_LABEL[st]}</div>
-    <div style="font-size:16px;font-weight:700;">${escapeHtml(item.name)}</div>
-    <div class="tray-code" style="margin:2px 0 12px;">${item.code} &middot; Lot ${escapeHtml(item.lot||'-')}</div>
-    <div class="tray-meta"><span>วันหมดอายุ: <b>${fmtDate(item.expiry)}</b></span><span class="qty-tag">คงเหลือ ${item.qty}</span></div>
-    ${!standardPass(item) ? '<div class="tray-std fail" style="margin-top:10px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> ชุดนี้ไม่ผ่านเกณฑ์มาตรฐาน โปรดตรวจสอบก่อนใช้งาน</div>' : ''}
-    <button class="btn btn-primary" style="margin-top:16px;width:100%;justify-content:center;" id="btn-confirm-use" ${item.qty<=0?'disabled':''}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      ยืนยันว่าใช้แล้ว
-    </button>`;
-  const btn = document.getElementById('btn-confirm-use');
-  if(btn) btn.onclick = async ()=>{ await useOne(item, 'scan'); renderScanResult(items.find(i=>i.id===item.id)); renderScanLog(); };
+  const existing = currentCase.items.find(ci=>ci.itemId===item.id);
+  const alreadyPicked = existing ? existing.count : 0;
+  if(alreadyPicked + 1 > item.qty){
+    fb.innerHTML = `<div class="catalog-miss" style="margin-top:8px;">${escapeHtml(item.name)} คงเหลือไม่พอ (เหลือ ${item.qty})</div>`;
+    return;
+  }
+  if(existing){ existing.count += 1; } else { currentCase.items.push({itemId:item.id, name:item.name, code:item.code, count:1}); }
+  fb.innerHTML = `<div class="catalog-hit" style="margin-top:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> เพิ่ม ${escapeHtml(item.name)} แล้ว</div>`;
+  renderCaseItemList();
 }
+
+document.getElementById('btn-save-case').addEventListener('click', async ()=>{
+  const hn = document.getElementById('case-hn').value.trim();
+  const op = document.getElementById('case-op').value.trim();
+  if(!hn || !op){ showToast('กรุณากรอก HN และการผ่าตัดก่อนบันทึก'); return; }
+  if(!currentCase.items.length){ showToast('ยังไม่ได้เพิ่มเครื่องมือ'); return; }
+  for(const ci of currentCase.items){
+    const item = items.find(i=>i.id===ci.itemId);
+    if(!item || item.qty < ci.count){ showToast(`สต๊อก ${ci.name} ไม่พอแล้ว กรุณาตรวจสอบอีกครั้ง`); return; }
+  }
+  const ts = Date.now();
+  currentCase.items.forEach(ci=>{
+    const item = items.find(i=>i.id===ci.itemId);
+    for(let n=0;n<ci.count;n++){
+      item.qty -= 1;
+      logs.unshift({id:uid(), itemId:item.id, name:item.name, code:item.code, ts, source:'scan-case', hn, operation:op});
+    }
+  });
+  logs = logs.slice(0,300);
+  await saveItems(); await saveLogs();
+  showToast(`บันทึกเคส HN ${hn} เรียบร้อย (${currentCase.items.length} รายการ)`, true);
+  currentCase = { items: [] };
+  document.getElementById('case-hn').value='';
+  document.getElementById('case-op').value='';
+  document.getElementById('case-scan-feedback').innerHTML='';
+  renderCaseItemList();
+  renderAll();
+});
+document.getElementById('btn-clear-case').addEventListener('click', ()=>{
+  if(currentCase.items.length && !confirm('ล้างรายการเคสปัจจุบันทั้งหมด?')) return;
+  currentCase = { items: [] };
+  document.getElementById('case-hn').value='';
+  document.getElementById('case-op').value='';
+  document.getElementById('case-scan-feedback').innerHTML='';
+  renderCaseItemList();
+});
+
 function renderScanLog(){
   const el = document.getElementById('usage-log-list');
   if(!logs.length){ el.innerHTML = '<p style="font-size:12.5px;color:var(--steel);">ยังไม่มีประวัติการใช้งาน</p>'; return; }
   el.innerHTML = logs.slice(0,10).map(l=>{
     const dt = new Date(l.ts);
     const time = dt.toLocaleString('th-TH', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
-    return `<div class="log-row"><span>${escapeHtml(l.name)}</span><span class="lt">${time}</span></div>`;
+    const meta = (l.hn || l.operation) ? `<div style="font-size:10.5px;color:var(--steel);margin-top:1px;">HN ${escapeHtml(l.hn||'-')} • ${escapeHtml(l.operation||'-')}</div>` : '';
+    return `<div class="log-row" style="flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;"><span>${escapeHtml(l.name)}</span><span class="lt">${time}</span></div>
+      ${meta}
+    </div>`;
   }).join('');
 }
 document.getElementById('btn-manual-find').addEventListener('click', ()=>{
   const code = document.getElementById('manual-code').value;
   if(!code.trim()){ showToast('กรุณากรอกรหัส'); return; }
   const item = findByCode(code);
-  renderScanResult(item, code);
-});
-document.getElementById('manual-code').addEventListener('keydown', e=>{
-  if(e.key==='Enter') document.getElementById('btn-manual-find').click();
+  addItemToCase(item, code);
+  document.getElementById('manual-code').value = '';
 });
 
 function onScanSuccess(decodedText){
-  document.getElementById('manual-code').value = decodedText;
   const item = findByCode(decodedText);
-  renderScanResult(item, decodedText);
-  if(item) showToast(`พบชุด: ${item.name}`, true);
+  addItemToCase(item, decodedText);
 }
 async function startScanner(){
   if(typeof Html5Qrcode === 'undefined'){ showToast('โหลดไลบรารีกล้องไม่สำเร็จ กรุณากรอกรหัสด้วยตนเอง'); return; }
