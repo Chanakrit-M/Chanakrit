@@ -499,12 +499,18 @@ input,select,textarea{font-family:inherit;}
             </div>
             <div class="field"><label>การผ่าตัด</label><input id="u-op" list="operation-suggestions" placeholder="เช่น Appendectomy"></div>
             <div class="field"><label>หมายเหตุ (ปัจจัยเสี่ยงต่อการติดเชื้ออื่นๆ)</label><textarea id="u-notes" rows="2" placeholder="ไม่บังคับ"></textarea></div>
-            <label style="display:block;font-size:12.5px;font-weight:600;color:var(--steel);margin:14px 0 6px;">สแกนเพิ่มเครื่องมือที่ใช้</label>
-            <div class="manual-row">
-              <input id="u-scan-code" placeholder="สแกน QR ของแอป หรือบาร์โค้ดจ่ายกลางก็ได้" class="mono">
-              <button class="btn btn-outline-blue" id="btn-u-find">เพิ่ม</button>
-            </div>
-            <div id="u-scan-feedback"></div>
+<label style="display:block;font-size:12.5px;font-weight:600;color:var(--steel);margin:14px 0 6px;">สแกนเพิ่มเครื่องมือที่ใช้</label>
+<div id="reader-usage"></div>
+<div style="display:flex;gap:8px;margin-top:12px;">
+  <button class="btn btn-primary" id="btn-usage-scan-start" style="flex:1;justify-content:center;">เริ่มกล้อง</button>
+  <button class="btn" id="btn-usage-scan-stop" style="flex:1;justify-content:center;" disabled>หยุดกล้อง</button>
+</div>
+<p style="font-size:11.5px;color:var(--steel);margin:10px 0 0;">หากกล้องใช้งานไม่ได้ในอุปกรณ์นี้ ให้กรอกรหัสด้วยตนเองด้านล่าง</p>
+<div class="manual-row">
+  <input id="u-scan-code" placeholder="สแกน QR ของแอป หรือบาร์โค้ดจ่ายกลางก็ได้" class="mono">
+  <button class="btn btn-outline-blue" id="btn-u-find">เพิ่ม</button>
+</div>
+<div id="u-scan-feedback"></div>
           </div>
           <div>
             <div class="scan-panel">
@@ -660,6 +666,8 @@ const CRITERIA = [
 ];
 const STATUS_LABEL = {ok:"ปกติ", soon:"ใกล้หมดอายุ", expired:"หมดอายุ"};
 const SOON_DAYS = 7;
+const SEED_OPERATIONS = ["A1 Pully Release", "Amputation", "Appendectomy", "Arthotomy", "BKA", "Bilateral  inguinal hernia", "C/S", "C/S c- Appendectomy", "C/S c- TR", "C/S c- TR c- Appendectomy", "C/S c-TR c- Appendectomy", "CN biopsy", "CNB", "CR c SAC", "CRIF c- K-Wire", "CRIF c- PFNA", "Carpal Tunnel Release", "Carpal Tunnel Release, A1 Pully Release", "Closed Reduction", "Closed Stump", "Colonoscopy", "Colonoscopy + EGD", "Colonoscopy, EGD c clotest/biopsy", "Colonoscopy/biopsy/Polypectomy", "DB c closed stump left foot", "DB c- K-wire", "DB c- Suture", "Debridement", "Debridement c- stop bleed", "Debridement, Remove FB", "Debridement, Repair nail bed", "Debridement, Suture", "Debridement, Suture/Re-Suture", "Dressing Wound", "EDB", "EDB +- Ray amp 5th of toe", "EGD", "EGD + Colonoscopy", "EGD c Remove FB", "EGD c clotest/biopsy", "EGD c- EVL", "EGD c- Hemoclip/Adrenaline inj.", "EGD, Colonoscopy", "EL", "EL c- Lysis adhesion", "EL c- repair hernia", "ERCP", "Excision", "Excision, Cauterization", "Excisional DB c Repaire muscle", "Excisional Debridement", "Excisional Debridement, Amputation", "Excisional Debridement, Ray amputation", "Excisional Debridement, Remove FB", "Excisional Debridement, Suture/Re-Suture", "Excisional debridement", "Explor Lab", "Explor-lab", "Exploratory laparotomy", "Explore - lab", "Explore Lab c- Cystectomy", "Explore Lab c- Salpingectomy", "Explore Lab c- Salpingo-Oophorectomy c- Appendectomy", "Explore Lap", "Explore Lap c- Hemicolectomy", "Explore Lap c- lysis Adhesion", "Explore Lap c- sigmoidectomy", "Explore Lap c- simple suture", "Explore Lap c- simple suture, Explore Lap c- omental plugged", "Explore wound c Remove bullet", "Fasciotomy", "Fasiotomy", "Fistulectomy", "Frenulotomy", "Hemorrhoidectomy", "Hernioplasty c- Mesh graft", "I&D", "Incision and Draige", "Incision and drainage", "Incision biopsy/Biopsy", "LAP LAR", "LEEP", "LN biopsy", "Lap LAR", "Lap Rt Hemicolectomy", "Lap-AR", "Laparoscopic Rt Hemicolectomy", "Laparoscopic cholecystectomy (LC)", "Left MRM", "Lingual frenotomy", "Lingual frenotomy (25.91)", "Lobec+Ischmectomy", "Loop colostomy", "Mazulization", "Nail extraction", "ORIF Plate and screw  left clavicle", "ORIF c hook plate Left clavicle", "ORIF c- K-Wire", "ORIF c- K-Wire, Debridement", "ORIF c- K-Wire, Repair Tendon", "ORIF c- Looking Plate", "ORIF c- P&S", "ORIF c- Plate & Screw", "ORIF c- TBW", "ORIF c- Tension Banwiring", "Off Norplant", "Off TK", "Open Cholecystectomy (OC)", "Open and Drainage", "PCD", "PTBD", "Partial nail extraction", "Ray amputation", "Reduce colostomy", "Remove FB", "Remove FB, Debridement", "Remove K-Wire", "Remove Plate & Screw", "Remove hook plate", "Repair Muscle", "Repair Muscle | Excisional Debridement", "Repair Tendon", "Repair Tendon, DB c- SAS", "Repair muscle", "Repair nail bed", "Repair nail bed, Debridement", "Replacement of gastrostomy tube", "Revice PTBD", "Revise gastrostomy", "Rt.hernioplasty", "Suture/Re-Suture", "Suture/Re-Suture, Excisional Debridement", "Suture/Re-Suture, Suture", "TAH", "TAH c- BSO", "TAH c- BSO c- Appendectomy", "TAH c- SO c- Appendectomy", "TAH c- USO", "TR", "Total Thyroidectomy", "Unilateral salpinggo-oophorectomy", "V-Hysterectomy A-P Repair", "V-Y Flap", "Vasectomy", "Wide Excision", "amputate", "ampution Rt big toe", "apendectomy", "colono", "explore", "explore lap", "off norplant", "repair mucle"];
+const SEED_DEPARTMENTS = ["ศัลยกรรมทั่วไป (gen)", "สูติ-นรีเวชกรรม (obgyn)", "ศัลยกรรมกระดูก (ortho)"];
 
 let items = [];
 let logs = [];
@@ -829,7 +837,12 @@ async function loadData(){
     else if(!rLogs.ok && pendingSaves['usage-logs']===0){ logs = localGet('usage-logs', []); }
     if(rCatalog.ok && pendingSaves.catalog===0){ catalog = rCatalog.data || []; localSet('catalog', catalog); }
     else if(!rCatalog.ok && pendingSaves.catalog===0){ catalog = localGet('catalog', []); }
-    orDirectory = rOrDir.ok ? (rOrDir.data || {operations:[], departments:[]}) : localGet('or-directory', {operations:[], departments:[]});
+        orDirectory = rOrDir.ok ? (rOrDir.data || {operations:[], departments:[]}) : localGet('or-directory', {operations:[], departments:[]});
+    if(!orDirectory.operations.length && !orDirectory.departments.length){
+      orDirectory = { operations: SEED_OPERATIONS.slice(), departments: SEED_DEPARTMENTS.slice() };
+      localSet('or-directory', orDirectory);
+      saveOrDirectory();
+    }
     localSet('or-directory', orDirectory);
     setSyncStatus('ok');
   }
@@ -882,7 +895,7 @@ function setView(v){
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
   document.querySelectorAll('.bn-item').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v];
-  if(v !== 'scan'){ stopReceiveScanner(); }
+    if(v !== 'scan'){ stopReceiveScanner(); }   if(v !== 'usage'){ stopUsageScanner(); }
   if(v === 'print') renderPrintView();
   if(v === 'standards') renderStandardsView();
   if(v === 'reports') renderReportsView();
@@ -1470,6 +1483,40 @@ document.getElementById('btn-u-find').addEventListener('click', ()=>{
   document.getElementById('u-scan-code').value = '';
 });
 document.getElementById('u-scan-code').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('btn-u-find').click(); });
+
+let html5QrCodeUsage = null;
+let usageLastScan = { code: null, time: 0 };
+function onUsageScanSuccess(decodedText){
+  const now = Date.now();
+  if(decodedText === usageLastScan.code && (now - usageLastScan.time) < 2000){
+    return; // กันสแกนโค้ดเดิมซ้ำภายใน 2 วิ (กล้องอ่าน QR เดิมซ้ำทุกเฟรม)
+  }
+  usageLastScan = { code: decodedText, time: now };
+  const item = findByCode(decodedText);
+  addItemToUsageCase(item, decodedText);
+}
+async function startUsageScanner(){
+  if(typeof Html5Qrcode === 'undefined'){ showToast('โหลดไลบรารีกล้องไม่สำเร็จ กรุณากรอกรหัสด้วยตนเอง'); return; }
+  try{
+    html5QrCodeUsage = new Html5Qrcode("reader-usage");
+    const config = {fps:10, qrbox:{width:230,height:230}, formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.EAN_13]};
+    await html5QrCodeUsage.start({facingMode:"environment"}, config, onUsageScanSuccess);
+    document.getElementById('btn-usage-scan-start').disabled = true;
+    document.getElementById('btn-usage-scan-stop').disabled = false;
+  }catch(err){
+    showToast('เปิดกล้องไม่สำเร็จ กรุณาอนุญาตการใช้กล้อง หรือกรอกรหัสด้วยตนเอง');
+  }
+}
+async function stopUsageScanner(){
+  if(html5QrCodeUsage){
+    try{ await html5QrCodeUsage.stop(); html5QrCodeUsage.clear(); }catch(e){}
+    html5QrCodeUsage = null;
+  }
+  document.getElementById('btn-usage-scan-start').disabled = false;
+  document.getElementById('btn-usage-scan-stop').disabled = true;
+}
+document.getElementById('btn-usage-scan-start').addEventListener('click', startUsageScanner);
+document.getElementById('btn-usage-scan-stop').addEventListener('click', stopUsageScanner);
 
 document.getElementById('btn-save-usage').addEventListener('click', async ()=>{
   const hn = document.getElementById('u-hn').value.trim();
