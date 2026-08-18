@@ -447,9 +447,67 @@ input,select,textarea{font-family:inherit;}
         </div>
       </div>
 
-      <!-- SCAN -->
+            <!-- SCAN -->
       <div class="view" id="view-scan">
-
+        <div id="scan-mode-receive">
+        <div class="scan-wrap">
+          <div class="scan-panel">
+            <h3 class="section-title" style="margin-top:0;">สแกนฉลากจากจ่ายกลาง</h3>
+            <div id="reader-receive"></div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button class="btn btn-primary" id="btn-recv-scan-start" style="flex:1;justify-content:center;">เริ่มกล้อง</button>
+              <button class="btn" id="btn-recv-scan-stop" style="flex:1;justify-content:center;" disabled>หยุดกล้อง</button>
+            </div>
+            <p style="font-size:11.5px;color:var(--steel);margin:10px 0 0;">สแกนบาร์โค้ด/QR บนซองที่จ่ายกลางติดมา ระบบจะดึงรหัสมาใส่ในช่อง "เลข Lot" ให้อัตโนมัติ หรือกรอกเองได้</p>
+            <div id="catalog-match" style="margin-top:10px;"></div>
+            <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+              <h3 class="section-title" style="margin-bottom:6px;">รายการอุปกรณ์มาตรฐาน</h3>
+              <p style="font-size:11.5px;color:var(--steel);margin:0 0 10px;">ลงทะเบียนครั้งแรกต่ออุปกรณ์ 1 ชนิด ครั้งต่อไปสแกนรหัสเดิม ระบบเติมชื่อ + คำนวณวันหมดอายุให้อัตโนมัติ (จากวันที่ทำปลอดเชื้อ + อายุการเก็บ)</p>
+              <div id="catalog-list"></div>
+            </div>
+          </div>
+          <div class="scan-panel">
+            <h3 class="section-title" style="margin-top:0;">ข้อมูลชุดที่รับเข้า</h3>
+            <div class="field"><label>ชื่อชุด/อุปกรณ์</label><input id="r-name" list="cssd-item-names" placeholder="เช่น ชุดผ่าตัดไส้ติ่ง Set A"></div>
+            <div class="field-row">
+              <div class="field"><label>เลข Lot (จากสแกน)</label><input id="r-lot" placeholder="สแกนหรือกรอกเอง" class="mono"></div>
+              <div class="field"><label>จำนวน</label><input id="r-qty" type="number" min="1" value="1"></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>วันที่ทำให้ปลอดเชื้อ</label>
+                <div class="thai-date-wrap">
+                  <input id="r-sterile-date" type="date" class="date-native-hidden">
+                  <input id="r-sterile-date-thai" type="text" class="thai-date-display" readonly placeholder="เลือกวันที่">
+                </div>
+              </div>
+              <div class="field"><label>อายุการเก็บ (วัน)</label><input id="r-shelf-days" type="number" min="1" value="365"></div>
+            </div>
+            <div class="field"><label>วันหมดอายุ (คำนวณอัตโนมัติ — แก้ไขได้)</label>
+              <div class="thai-date-wrap">
+                <input id="r-expiry" type="date" class="date-native-hidden">
+                <input id="r-expiry-thai" type="text" class="thai-date-display" readonly placeholder="เลือกวันที่">
+              </div>
+            </div>
+            <div class="field">
+              <label>วิธีทำให้ปลอดเชื้อ</label>
+              <select id="r-method">
+                <option>Autoclave (ไอน้ำ)</option>
+                <option>EO Gas</option>
+                <option>Plasma (H2O2)</option>
+                <option>อื่นๆ</option>
+              </select>
+            </div>
+            <label class="check-row" style="border-bottom:none;padding-top:2px;">
+              <input type="checkbox" id="r-save-catalog" checked>
+              <span>บันทึกเป็นรายการมาตรฐาน (ครั้งหน้าสแกนรหัสนี้จะเติมให้อัตโนมัติ)</span>
+            </label>
+            <button class="btn btn-primary" id="btn-receive-save" style="width:100%;justify-content:center;margin-top:10px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 V3 h12 v6"/><rect x="6" y="14" width="12" height="7"/><rect x="4" y="9" width="16" height="7" rx="1.5"/></svg>
+              รับเข้าคลัง แล้วพิมพ์ QR ทันที
+            </button>
+            <div id="receive-print-preview" style="margin-top:16px;"></div>
+          </div>
+        </div>
         </div>
       </div>
     <!-- USAGE HISTORY -->
@@ -837,12 +895,11 @@ function setView(v){
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
   document.querySelectorAll('.bn-item').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v];
-  if(v !== 'scan'){ stopScanner(); stopReceiveScanner(); }
+  if(v !== 'scan'){ stopReceiveScanner(); }
       if(v === 'print') renderPrintView();
   if(v === 'standards') renderStandardsView();
   if(v === 'reports') renderReportsView();
-  if(v === 'usage'){ renderUsageItemList(); renderUsageHistory(); populateOrSuggestions(); }
-  if(v === 'scan') renderCaseItemList();
+    if(v === 'usage'){ renderUsageItemList(); renderUsageHistory(); populateOrSuggestions(); }
 }
 document.getElementById('nav').addEventListener('click', e=>{
   const btn = e.target.closest('.nav-item'); if(!btn) return;
@@ -1337,13 +1394,7 @@ function findByCode(code){
   return candidates[0];
 }
 
-  if(currentCase.items.length && !confirm('ล้างรายการเคสปัจจุบันทั้งหมด?')) return;
-  currentCase = { items: [] };
-  document.getElementById('case-hn').value='';
-  document.getElementById('case-op').value='';
-  document.getElementById('case-scan-feedback').innerHTML='';
-  renderCaseItemList();
-});
+ function renderScanLog(){
 
 function renderScanLog(){
   const el = document.getElementById('usage-log-list');
@@ -1362,64 +1413,7 @@ function renderScanLog(){
 function onScanSuccess(decodedText){
   // ฟังก์ชันนี้ไม่ได้ใช้แล้วหลังยกเลิกโหมด "สแกนใช้งาน" — เหลือไว้เผื่ออนาคต
 }
-async function startScanner(){
-  if(typeof Html5Qrcode === 'undefined'){ showToast('โหลดไลบรารีกล้องไม่สำเร็จ กรุณากรอกรหัสด้วยตนเอง'); return; }
-  try{
-    html5QrCode = new Html5Qrcode("reader");
-    const config = {fps:10, qrbox:{width:230,height:230}, formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.EAN_13]};
-    await html5QrCode.start({facingMode:"environment"}, config, onScanSuccess);
-    document.getElementById('btn-scan-start').disabled = true;
-    document.getElementById('btn-scan-stop').disabled = false;
-  }catch(err){
-    showToast('เปิดกล้องไม่สำเร็จ กรุณาอนุญาตการใช้กล้อง หรือกรอกรหัสด้วยตนเอง');
-  }
-}
-async function stopScanner(){
-  if(html5QrCode){
-    try{ await html5QrCode.stop(); html5QrCode.clear(); }catch(e){}
-    html5QrCode = null;
-  }
-  document.getElementById('btn-scan-start').disabled = false;
-  document.getElementById('btn-scan-stop').disabled = true;
-}
-document.getElementById('btn-scan-start').addEventListener('click', startScanner);
-document.getElementById('btn-scan-stop').addEventListener('click', stopScanner);
 
-/* ---------- SCAN MODE TOGGLE ---------- */
-document.getElementById('scan-mode-chips').addEventListener('click', e=>{
-  const chip = e.target.closest('.chip'); if(!chip) return;
-  document.querySelectorAll('#scan-mode-chips .chip').forEach(c=>c.classList.remove('active'));
-  chip.classList.add('active');
-  scanMode = chip.dataset.mode;
-  if(scanMode==='use'){
-    document.getElementById('scan-mode-use').style.display='';
-    document.getElementById('scan-mode-receive').style.display='none';
-    stopReceiveScanner();
-  }else{
-    document.getElementById('scan-mode-use').style.display='none';
-    document.getElementById('scan-mode-receive').style.display='';
-    stopScanner();
-    document.getElementById('r-sterile-date').value = todayStr();
-    recalcExpiry();
-    renderCatalogList(function renderCatalogList(){
-  const el = document.getElementById('catalog-list');
-  if(!catalog.length){ el.innerHTML = '<p style="font-size:12px;color:var(--steel);">ยังไม่มีรายการมาตรฐานที่ลงทะเบียน</p>'; return; }
-  el.innerHTML = catalog.map(c=>`
-    <div class="catalog-row">
-      <div><div class="cn">${escapeHtml(c.name)}</div><div class="cc">${escapeHtml(c.code)} &middot; ${c.shelfDays} วัน &middot; ${escapeHtml(c.method)}</div></div>
-      <button class="icon-btn danger" data-del-cat="${escapeHtml(c.code)}" title="ลบ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6 v14 a2 2 0 0 1-2 2 H7 a2 2 0 0 1-2-2 V6 m3 0 V4 a2 2 0 0 1 2-2 h4 a2 2 0 0 1 2 2 v2"/></svg></button>
-    </div>`).join('');
-  el.querySelectorAll('[data-del-cat]').forEach(b=>{
-    b.addEventListener('click', async ()=>{
-      catalog = catalog.filter(c=>c.code!==b.dataset.delCat);
-      await saveCatalog();
-      renderCatalogList();
-      showToast('ลบรายการมาตรฐานแล้ว', true);
-    });
-  });
-});
-  }
-});
 /* ---------- USAGE HISTORY (HN + operation-centric case recording) ---------- */
 function populateOrSuggestions(){
   const opDl = document.getElementById('operation-suggestions');
@@ -1782,10 +1776,10 @@ document.getElementById('btn-export-report').addEventListener('click', ()=>{
 function renderAll(){
   renderDashboard();
   renderInventory();
-  renderScanLog();
   renderCatalogList();
   if(currentView==='print') renderPrintView();
   if(currentView==='standards') renderStandardsView();
+  if(currentView==='usage') renderUsageHistory();
 }
 
 function populateItemNameSuggestions(){
