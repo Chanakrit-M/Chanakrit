@@ -1410,7 +1410,10 @@ function renderUsageItemList(){
     el.innerHTML = currentUsageCase.items.map((ci,idx)=>`
       <div class="log-row" style="flex-direction:column;align-items:stretch;gap:6px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>${escapeHtml(ci.name)}</span>
+          <div>
+            <div>${escapeHtml(ci.name)}</div>
+            <div style="font-size:10.5px;color:var(--steel);font-family:'IBM Plex Mono',monospace;margin-top:1px;">Lot ${escapeHtml(ci.lot||'-')} &middot; หมดอายุ ${fmtDate(ci.expiry)}</div>
+          </div>
           <span style="display:flex;align-items:center;gap:8px;">
             <span class="qty-tag">x${ci.count}</span>
             <button type="button" class="icon-btn danger" data-remove-usage="${idx}" title="ลบ" style="width:26px;height:26px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -1441,11 +1444,21 @@ function addItemToUsageCase(item, notFoundCode){
   const existing = currentUsageCase.items.find(ci=>ci.itemId===item.id);
   const alreadyPicked = existing ? existing.count : 0;
   if(alreadyPicked + 1 > item.qty){
-    fb.innerHTML = `<div class="catalog-miss" style="margin-top:8px;">${escapeHtml(item.name)} คงเหลือไม่พอ (เหลือ ${item.qty})</div>`;
+    fb.innerHTML = `<div class="catalog-miss" style="margin-top:8px;">${escapeHtml(item.name)} (Lot ${escapeHtml(item.lot||'-')}) คงเหลือไม่พอ (เหลือ ${item.qty})</div>`;
     return;
   }
-  if(existing){ existing.count += 1; } else { currentUsageCase.items.push({itemId:item.id, name:item.name, code:item.code, count:1, pass: standardPass(item)}); }
-  fb.innerHTML = `<div class="catalog-hit" style="margin-top:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> เพิ่ม ${escapeHtml(item.name)} แล้ว</div>`;
+  if(existing){
+    existing.count += 1;
+  }else{
+    currentUsageCase.items.push({
+      itemId:item.id, name:item.name, code:item.code, lot:item.lot||'', sterileDate:item.sterileDate||'', expiry:item.expiry||'',
+      count:1, pass: standardPass(item)
+    });
+  }
+  fb.innerHTML = `<div class="catalog-hit" style="margin-top:8px;">
+    <div style="display:flex;align-items:center;gap:7px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> เพิ่ม ${escapeHtml(item.name)} แล้ว</div>
+    <div style="font-size:11px;color:var(--steel);margin-top:3px;font-family:'IBM Plex Mono',monospace;">Lot ${escapeHtml(item.lot||'-')} &middot; ทำปลอดเชื้อ ${fmtDate(item.sterileDate)} &middot; หมดอายุ ${fmtDate(item.expiry)}</div>
+  </div>`;
   renderUsageItemList();
 }
 
@@ -1534,7 +1547,7 @@ document.getElementById('btn-save-usage').addEventListener('click', async ()=>{
     const item = items.find(i=>i.id===ci.itemId);
     for(let n=0;n<ci.count;n++){
       item.qty -= 1;
-      logs.unshift({id:uid(), itemId:item.id, name:item.name, code:item.code, ts, source:'usage-module', hn, operation:op, department:dept, notes, pass: ci.pass});
+      logs.unshift({id:uid(), itemId:item.id, name:item.name, code:item.code, lot:item.lot||'', expiry:item.expiry||'', ts, source:'usage-module', hn, operation:op, department:dept, notes, pass: ci.pass});
     }
   });
   logs = logs.slice(0,300);
