@@ -312,6 +312,7 @@ input,select,textarea{font-family:inherit;}
 .tdp-month-cell{font-size:12.5px; padding:9px 4px; border-radius:8px; text-align:center; cursor:pointer;}
 .tdp-month-cell:hover{background:var(--sterile-white);}
 .tdp-month-cell.tdp-selected{background:var(--scrub-green-mid); color:#fff; font-weight:700;}
+.shelf-btn.active{background:linear-gradient(135deg,var(--scrub-green-mid),var(--scrub-green));border-color:var(--scrub-green);color:#fff;}
 </style>
 </head>
 <body>
@@ -457,7 +458,13 @@ input,select,textarea{font-family:inherit;}
                   <input id="r-sterile-date-thai" type="text" class="thai-date-display" readonly placeholder="เลือกวันที่">
                 </div>
               </div>
-              <div class="field"><label>อายุการเก็บ (วัน)</label><input id="r-shelf-days" type="number" min="1" value="365"></div>
+              <div class="field"><label>อายุการเก็บ</label>
+                <div style="display:flex;gap:8px;">
+                  <button type="button" class="btn shelf-btn" data-days="30" style="flex:1;justify-content:center;">30 วัน</button>
+                  <button type="button" class="btn shelf-btn" data-days="365" style="flex:1;justify-content:center;">1 ปี</button>
+                </div>
+                <input id="r-shelf-days" type="number" min="1" value="365" style="display:none;">
+              </div>
             </div>
             <div class="field"><label>วันหมดอายุ (คำนวณอัตโนมัติ — แก้ไขได้)</label>
               <div class="thai-date-wrap">
@@ -673,6 +680,7 @@ let items = [];
 let logs = [];
 let catalog = [];
 let orDirectory = { operations: [], departments: [] };
+let itemShelfMemory = {};
 let currentUsageCase = { items: [] };
 let currentView = "dashboard";
 let invFilter = "all";
@@ -816,6 +824,7 @@ async function loadData(){
     logs = localGet('usage-logs', []);
     catalog = localGet('catalog', []);
     orDirectory = localGet('or-directory', {operations:[], departments:[]});
+    itemShelfMemory = localGet('item-shelf-memory', {});
     setSyncStatus('unconfigured');
     renderAll();
     populateOrSuggestions();
@@ -844,6 +853,9 @@ async function loadData(){
       saveOrDirectory();
     }
     localSet('or-directory', orDirectory);
+    const rShelf = await cloudGet('item-shelf-memory');
+    itemShelfMemory = (rShelf.ok && rShelf.data) ? rShelf.data : localGet('item-shelf-memory', {});
+    localSet('item-shelf-memory', itemShelfMemory);
     setSyncStatus('ok');
   }
   renderAll();
@@ -1597,6 +1609,30 @@ function recalcExpiry(){
 }
 document.getElementById('r-sterile-date').addEventListener('change', recalcExpiry);
 document.getElementById('r-shelf-days').addEventListener('input', recalcExpiry);
+
+/* ---------- SHELF-LIFE PRESET BUTTONS + PER-NAME MEMORY ---------- */
+// itemShelfMemory declared globally above
+function setShelfDays(days){
+  const input = document.getElementById('r-shelf-days');
+  input.value = days;
+  document.querySelectorAll('.shelf-btn').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.days,10)===parseInt(days,10)));
+  recalcExpiry();
+}
+document.querySelectorAll('.shelf-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    setShelfDays(parseInt(btn.dataset.days,10));
+    // จำอายุเก็บของชื่อเครื่องมือปัจจุบันไว้
+    const name = document.getElementById('r-name').value.trim();
+    if(name){ itemShelfMemory[name] = parseInt(btn.dataset.days,10); localSet('item-shelf-memory', itemShelfMemory); cloudSet('item-shelf-memory', itemShelfMemory); }
+  });
+});
+// เมื่อเลือก/พิมพ์ชื่อเครื่องมือ ถ้าเคยจำอายุเก็บไว้ ให้เด้งอัตโนมัติ
+document.getElementById('r-name').addEventListener('change', ()=>{
+  const name = document.getElementById('r-name').value.trim();
+  if(name && itemShelfMemory[name]){ setShelfDays(itemShelfMemory[name]); }
+});
+// ตั้งค่าเริ่มต้นให้ปุ่ม 1 ปี active ตอนโหลด
+setShelfDays(365);
 
 function onReceiveScanSuccess(decodedText){
   document.getElementById('r-lot').value = decodedText;
